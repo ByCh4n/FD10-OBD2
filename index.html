@@ -230,6 +230,7 @@ input,select{background:var(--surface-2);border:1px solid var(--line);border-rad
           <dl class="kv">
             <dt>Akü</dt><dd id="kvBatt">–</dd>
             <dt>Arıza lambası</dt><dd id="kvMil">–</dd>
+            <dt>Yakıt sistemi</dt><dd id="kvFsys">–</dd>
             <dt>Bakım</dt><dd id="kvMaint">–</dd>
             <dt>İstek hızı</dt><dd id="kvRate">–</dd>
           </dl>
@@ -246,6 +247,12 @@ input,select{background:var(--surface-2);border:1px solid var(--line);border-rad
     </div>
 
     <div class="card" id="tilesCard"></div>
+
+    <div class="card" id="rawCard" hidden>
+      <h2>Çözümlenmeyen PID'ler (ham)</h2>
+      <p class="note" style="margin-bottom:10px">ECU bu PID'leri desteklediğini bildiriyor ama panelde çözümü yok. Ham baytlar gösteriliyor.</p>
+      <div class="tbl"><table><thead><tr><th>PID</th><th>Ham veri</th></tr></thead><tbody id="rawRows"></tbody></table></div>
+    </div>
 
     <div class="card">
       <div class="card-head">
@@ -357,6 +364,7 @@ input,select{background:var(--surface-2);border:1px solid var(--line);border-rad
       <div class="metric"><div class="k">Arıza lambası</div><div class="v" id="sumMil">–</div></div>
       <div class="metric"><div class="k">Kayıtlı</div><div class="v" id="sumStored">–</div></div>
       <div class="metric"><div class="k">Bekleyen</div><div class="v" id="sumPending">–</div></div>
+      <div class="metric"><div class="k">Kalıcı</div><div class="v" id="sumPerm">–</div></div>
       <div class="metric"><div class="k">Son okuma</div><div class="v" id="sumTime" style="font-size:16px;padding-top:4px">–</div></div>
     </div>
     <div class="confirm" id="clearConfirm" hidden style="margin-top:14px">
@@ -382,6 +390,12 @@ input,select{background:var(--surface-2);border:1px solid var(--line);border-rad
     </div>
   </div>
 
+  <div class="card">
+    <h2>Kalıcı kodlar</h2>
+    <p class="note" style="margin-bottom:10px">Silme komutuyla gitmez. ECU arızanın düzeldiğini kendi testleriyle doğrulayınca kendiliğinden silinir.</p>
+    <div class="tbl"><table><thead><tr><th>Kod</th><th>Açıklama</th><th>Sistem</th><th>Kaynak</th></tr></thead><tbody id="listPerm"></tbody></table></div>
+  </div>
+
   <div class="cols">
     <div class="card">
       <div class="card-head"><h2>Freeze frame</h2><span class="pill mono" id="ffCode">–</span></div>
@@ -391,6 +405,15 @@ input,select{background:var(--surface-2);border:1px solid var(--line);border-rad
       <h2>Hazırlık testleri</h2>
       <div class="tbl"><table><thead><tr><th>Test</th><th>Durum</th></tr></thead><tbody id="listReady"></tbody></table></div>
     </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h2>Bileşen testleri (Mode 06)</h2>
+      <div class="row"><span class="pill" id="m6State">Okunmadı</span><button class="btn" id="btnM6" disabled>Testleri oku</button></div>
+    </div>
+    <p class="note" style="margin-bottom:10px">ECU'nun O2 sensörü, katalizör, tekleme gibi izleme testlerinin ham sonuçları. Değer limitlere yakınsa parça henüz arıza vermeden zayıflıyor olabilir.</p>
+    <div class="tbl"><table><thead><tr><th>Test</th><th class="r">Değer</th><th class="r">Min</th><th class="r">Maks</th><th>Birim</th><th>Durum</th></tr></thead><tbody id="m6Rows"></tbody></table></div>
   </div>
 </section>
 
@@ -454,6 +477,14 @@ input,select{background:var(--surface-2);border:1px solid var(--line);border-rad
         <dt>Protokol kodu</dt><dd id="ciProtoN" class="mono">–</dd>
         <dt>Desteklenen PID</dt><dd id="ciPids">–</dd>
         <dt>Şasi no (ECU)</dt><dd id="ciVin" class="mono">–</dd>
+        <dt>Yanıt veren ECU'lar</dt><dd id="ciEcus">–</dd>
+        <dt>ECU adı</dt><dd id="ciEcuName">–</dd>
+        <dt>Yazılım kimliği (CALID)</dt><dd id="ciCalid" class="mono">–</dd>
+        <dt>Kalibrasyon kodu (CVN)</dt><dd id="ciCvn" class="mono">–</dd>
+        <dt>OBD standardı</dt><dd id="ciObd">–</dd>
+        <dt>Yakıt tipi (ECU)</dt><dd id="ciFuelType">–</dd>
+        <dt>O2 sensörleri</dt><dd id="ciO2">–</dd>
+        <dt>İkincil hava</dt><dd id="ciSecAir">–</dd>
         <dt>Bağlantı zamanı</dt><dd id="ciTime">–</dd>
       </dl>
     </div>
@@ -558,43 +589,113 @@ const MAINT_DEF = [
 let maint = MAINT_DEF.map(d => ({...d, lastKm:null, lastDate:null, ...(store.get('clio-obd-maint', []).find(x => x.id === d.id) || {})}));
 const saveMaint = () => store.set('clio-obd-maint', maint);
 
-/* ---------- PID tanımları ---------- */
+/* ---------- PID tanımları (SAE J1979 Mode 01, sayısal olanların tamamı) ---------- */
+const W = (a,b) => a*256+b, PCT = a => a*100/255, TRIM = a => (a-128)*100/128, S16 = v => v > 32767 ? v-65536 : v;
 const PIDS = {
-  '0C':{k:'rpm',     l:'Devir',               u:'dev/dk', n:2, f:(a,b)=>(a*256+b)/4, d:0, fast:true, g:'motor'},
+  '0C':{k:'rpm',     l:'Devir',               u:'dev/dk', n:2, f:(a,b)=>W(a,b)/4, d:0, fast:true, g:'motor'},
   '0D':{k:'speed',   l:'Hız',                 u:'km/sa',  n:1, f:a=>a, d:0, fast:true, g:'motor'},
-  '04':{k:'load',    l:'Motor yükü',          u:'%',      n:1, f:a=>a*100/255, d:0, fast:true, g:'motor'},
-  '11':{k:'throttle',l:'Gaz kelebeği',        u:'%',      n:1, f:a=>a*100/255, d:0, fast:true, g:'motor'},
+  '04':{k:'load',    l:'Motor yükü',          u:'%',      n:1, f:PCT, d:0, fast:true, g:'motor'},
+  '43':{k:'absLoad', l:'Mutlak yük',          u:'%',      n:2, f:(a,b)=>W(a,b)*100/255, d:0, g:'motor'},
+  '11':{k:'throttle',l:'Gaz kelebeği',        u:'%',      n:1, f:PCT, d:0, fast:true, g:'motor'},
+  '45':{k:'relThr',  l:'Göreli gaz kelebeği', u:'%',      n:1, f:PCT, d:0, g:'motor'},
+  '47':{k:'thrB',    l:'Gaz kelebeği B',      u:'%',      n:1, f:PCT, d:0, g:'motor'},
+  '48':{k:'thrC',    l:'Gaz kelebeği C',      u:'%',      n:1, f:PCT, d:0, g:'motor'},
+  '4C':{k:'thrCmd',  l:'İstenen gaz kelebeği',u:'%',      n:1, f:PCT, d:0, g:'motor'},
+  '49':{k:'pedD',    l:'Gaz pedalı D',        u:'%',      n:1, f:PCT, d:0, g:'motor'},
+  '4A':{k:'pedE',    l:'Gaz pedalı E',        u:'%',      n:1, f:PCT, d:0, g:'motor'},
+  '4B':{k:'pedF',    l:'Gaz pedalı F',        u:'%',      n:1, f:PCT, d:0, g:'motor'},
+  '5A':{k:'relPed',  l:'Göreli gaz pedalı',   u:'%',      n:1, f:PCT, d:0, g:'motor'},
   '0B':{k:'map',     l:'Manifold basıncı',    u:'kPa',    n:1, f:a=>a, d:0, fast:true, g:'motor'},
   '0E':{k:'timing',  l:'Ateşleme avansı',     u:'°',      n:1, f:a=>a/2-64, d:1, g:'motor'},
+  '61':{k:'tqDem',   l:'İstenen tork',        u:'%',      n:1, f:a=>a-125, d:0, g:'motor'},
+  '62':{k:'tqAct',   l:'Gerçek tork',         u:'%',      n:1, f:a=>a-125, d:0, g:'motor'},
+  '63':{k:'tqRef',   l:'Referans tork',       u:'Nm',     n:2, f:W, d:0, g:'motor'},
+  '8E':{k:'tqFric',  l:'Sürtünme torku',      u:'%',      n:1, f:a=>a-125, d:0, g:'motor'},
   '05':{k:'coolant', l:'Motor suyu',          u:'°C',     n:1, f:a=>a-40, d:0, g:'temp'},
+  '5C':{k:'oil',     l:'Motor yağı',          u:'°C',     n:1, f:a=>a-40, d:0, g:'temp'},
   '0F':{k:'iat',     l:'Emme havası',         u:'°C',     n:1, f:a=>a-40, d:0, g:'temp'},
   '46':{k:'ambient', l:'Dış hava',            u:'°C',     n:1, f:a=>a-40, d:0, g:'temp'},
-  '10':{k:'maf',     l:'Hava akışı (MAF)',    u:'g/s',    n:2, f:(a,b)=>(a*256+b)/100, d:1, fast:true, g:'fuel'},
-  '06':{k:'stft',    l:'Kısa yakıt trimi',    u:'%',      n:1, f:a=>(a-128)*100/128, d:1, g:'fuel'},
-  '07':{k:'ltft',    l:'Uzun yakıt trimi',    u:'%',      n:1, f:a=>(a-128)*100/128, d:1, g:'fuel'},
-  '2F':{k:'fuel',    l:'Yakıt seviyesi',      u:'%',      n:1, f:a=>a*100/255, d:0, g:'fuel'},
-  '14':{k:'o2s1',    l:'O2 sensör 1 (ön)',    u:'V',      n:1, f:a=>a/200, d:2, g:'sensor'},
-  '15':{k:'o2s2',    l:'O2 sensör 2 (arka)',  u:'V',      n:1, f:a=>a/200, d:2, g:'sensor'},
-  '42':{k:'ecuv',    l:'ECU voltajı',         u:'V',      n:2, f:(a,b)=>(a*256+b)/1000, d:1, g:'elec'},
+  '3C':{k:'catB1S1', l:'Katalizör B1S1',      u:'°C',     n:2, f:(a,b)=>W(a,b)/10-40, d:0, g:'temp'},
+  '3D':{k:'catB2S1', l:'Katalizör B2S1',      u:'°C',     n:2, f:(a,b)=>W(a,b)/10-40, d:0, g:'temp'},
+  '3E':{k:'catB1S2', l:'Katalizör B1S2',      u:'°C',     n:2, f:(a,b)=>W(a,b)/10-40, d:0, g:'temp'},
+  '3F':{k:'catB2S2', l:'Katalizör B2S2',      u:'°C',     n:2, f:(a,b)=>W(a,b)/10-40, d:0, g:'temp'},
+  '10':{k:'maf',     l:'Hava akışı (MAF)',    u:'g/s',    n:2, f:(a,b)=>W(a,b)/100, d:1, fast:true, g:'fuel'},
+  '5E':{k:'fuelRate',l:'Yakıt debisi (ECU)',  u:'L/sa',   n:2, f:(a,b)=>W(a,b)/20, d:2, g:'fuel'},
+  '06':{k:'stft',    l:'Kısa yakıt trimi',    u:'%',      n:1, f:TRIM, d:1, g:'fuel'},
+  '07':{k:'ltft',    l:'Uzun yakıt trimi',    u:'%',      n:1, f:TRIM, d:1, g:'fuel'},
+  '08':{k:'stft2',   l:'Kısa yakıt trimi B2', u:'%',      n:1, f:TRIM, d:1, g:'fuel'},
+  '09':{k:'ltft2',   l:'Uzun yakıt trimi B2', u:'%',      n:1, f:TRIM, d:1, g:'fuel'},
+  '55':{k:'st2B1',   l:'Arka O2 kısa trim B1',u:'%',      n:1, f:TRIM, d:1, g:'fuel'},
+  '56':{k:'lt2B1',   l:'Arka O2 uzun trim B1',u:'%',      n:1, f:TRIM, d:1, g:'fuel'},
+  '57':{k:'st2B2',   l:'Arka O2 kısa trim B2',u:'%',      n:1, f:TRIM, d:1, g:'fuel'},
+  '58':{k:'lt2B2',   l:'Arka O2 uzun trim B2',u:'%',      n:1, f:TRIM, d:1, g:'fuel'},
+  '44':{k:'lambdaCmd',l:'İstenen lambda',     u:'λ',      n:2, f:(a,b)=>W(a,b)*2/65536, d:3, g:'fuel'},
+  '2F':{k:'fuel',    l:'Yakıt seviyesi',      u:'%',      n:1, f:PCT, d:0, g:'fuel'},
+  '0A':{k:'fuelP',   l:'Yakıt basıncı',       u:'kPa',    n:1, f:a=>a*3, d:0, g:'fuel'},
+  '22':{k:'railVac', l:'Rampa basıncı (vakum)',u:'kPa',   n:2, f:(a,b)=>W(a,b)*0.079, d:1, g:'fuel'},
+  '23':{k:'railP',   l:'Rampa basıncı',       u:'kPa',    n:2, f:(a,b)=>W(a,b)*10, d:0, g:'fuel'},
+  '59':{k:'railAbs', l:'Rampa mutlak basıncı',u:'kPa',    n:2, f:(a,b)=>W(a,b)*10, d:0, g:'fuel'},
+  '5D':{k:'injTime', l:'Enjeksiyon zamanlaması',u:'°',    n:2, f:(a,b)=>W(a,b)/128-210, d:1, g:'fuel'},
+  '52':{k:'ethanol', l:'Etanol oranı',        u:'%',      n:1, f:PCT, d:0, g:'fuel'},
+  '2C':{k:'egrCmd',  l:'İstenen EGR',         u:'%',      n:1, f:PCT, d:0, g:'emis'},
+  '2D':{k:'egrErr',  l:'EGR hatası',          u:'%',      n:1, f:TRIM, d:1, g:'emis'},
+  '2E':{k:'purge',   l:'Kanister boşaltma',   u:'%',      n:1, f:PCT, d:0, g:'emis'},
+  '32':{k:'evapP',   l:'EVAP buhar basıncı',  u:'Pa',     n:2, f:(a,b)=>S16(W(a,b))/4, d:0, g:'emis'},
+  '53':{k:'evapAbs', l:'EVAP mutlak basınç',  u:'kPa',    n:2, f:(a,b)=>W(a,b)/200, d:2, g:'emis'},
+  '54':{k:'evapP2',  l:'EVAP buhar basıncı (geniş)',u:'Pa',n:2, f:(a,b)=>S16(W(a,b)), d:0, g:'emis'},
+  '42':{k:'ecuv',    l:'ECU voltajı',         u:'V',      n:2, f:(a,b)=>W(a,b)/1000, d:1, g:'elec'},
+  '5B':{k:'hybBatt', l:'Hibrit akü',          u:'%',      n:1, f:PCT, d:0, g:'elec'},
   '33':{k:'baro',    l:'Atmosfer basıncı',    u:'kPa',    n:1, f:a=>a, d:0, g:'count'},
-  '1F':{k:'runtime', l:'Motor çalışma süresi',u:'sn',     n:2, f:(a,b)=>a*256+b, d:0, g:'count'},
-  '31':{k:'distClr', l:'Kod silmeden beri',   u:'km',     n:2, f:(a,b)=>a*256+b, d:0, g:'count'},
-  '21':{k:'distMil', l:'Lamba yanıkken yol',  u:'km',     n:2, f:(a,b)=>a*256+b, d:0, g:'count'},
+  '1F':{k:'runtime', l:'Motor çalışma süresi',u:'sn',     n:2, f:W, d:0, g:'count'},
+  '30':{k:'warmups', l:'Kod silmeden beri ısınma',u:'adet',n:1, f:a=>a, d:0, g:'count'},
+  '31':{k:'distClr', l:'Kod silmeden beri',   u:'km',     n:2, f:W, d:0, g:'count'},
+  '4E':{k:'timeClr', l:'Kod silmeden beri süre',u:'dk',   n:2, f:W, d:0, g:'count'},
+  '21':{k:'distMil', l:'Lamba yanıkken yol',  u:'km',     n:2, f:W, d:0, g:'count'},
+  '4D':{k:'timeMil', l:'Lamba yanıkken süre', u:'dk',     n:2, f:W, d:0, g:'count'},
+  'A6':{k:'odo',     l:'Kilometre (ECU)',     u:'km',     n:4, f:(a,b,c,d)=>(a*16777216+b*65536+c*256+d)/10, d:1, g:'count'},
 };
+// O2 sensörleri: 14–1B dar bant (voltaj + trim), 24–2B ve 34–3B geniş bant. Sıra PID 13 düzenine göre B1S1…B2S4.
+const O2POS = ['B1S1','B1S2','B1S3','B1S4','B2S1','B2S2','B2S3','B2S4'];
+const O2SIDE = {B1S1:' (ön)', B1S2:' (arka)'};
+O2POS.forEach((pos, i) => {
+  const s = O2SIDE[pos] || '';
+  PIDS[hex2(0x14+i)] = {k:'o2v'+pos, l:`O2 ${pos} voltajı${s}`, u:'V', n:1, f:a=>a/200, d:3, g:'sensor',
+    x:[{k:'o2t'+pos, l:`O2 ${pos} trimi${s}`, u:'%', d:1, g:'sensor', f:(a,b)=> b == null || b === 255 ? null : TRIM(b)}]};
+  PIDS[hex2(0x24+i)] = {k:'wlv'+pos, l:`Geniş bant ${pos} lambda`, u:'λ', n:4, f:(a,b)=>W(a,b)*2/65536, d:3, g:'sensor',
+    x:[{k:'wvv'+pos, l:`Geniş bant ${pos} voltajı`, u:'V', d:3, g:'sensor', f:(a,b,c,d)=>W(c,d)*8/65536}]};
+  PIDS[hex2(0x34+i)] = {k:'wlc'+pos, l:`Geniş bant ${pos} lambda`, u:'λ', n:4, f:(a,b)=>W(a,b)*2/65536, d:3, g:'sensor',
+    x:[{k:'wcc'+pos, l:`Geniş bant ${pos} akımı`, u:'mA', d:2, g:'sensor', f:(a,b,c,d)=>W(c,d)/256-128}]};
+});
+// Metin döndüren PID'ler
+const bitsList = (a, names) => names.filter((_, i) => a & (1<<i)).join(', ') || 'Yok';
+const FSYS = {1:'Açık devre (motor soğuk)', 2:'Kapalı devre (O2 ile)', 4:'Açık devre (yük veya yakıt kesme)', 8:'Açık devre (arıza)', 16:'Kapalı devre (geri besleme arızalı)'};
+const OBDSTD = {1:'OBD-II (CARB)', 2:'OBD (EPA)', 3:'OBD ve OBD-II', 4:'OBD-I', 5:'OBD uyumlu değil', 6:'EOBD (Avrupa)', 7:'EOBD ve OBD-II', 8:'EOBD ve OBD', 9:'EOBD, OBD ve OBD-II', 10:'JOBD', 11:'JOBD ve OBD-II', 12:'JOBD ve EOBD', 13:'JOBD, EOBD ve OBD-II'};
+const FTYPE = {1:'Benzin', 2:'Metanol', 3:'Etanol', 4:'Dizel', 5:'LPG', 6:'CNG', 7:'Propan', 8:'Elektrik'};
+const TXT = {
+  '03':{l:'Yakıt sistemi', live:true, f:a => FSYS[a] || (a ? 'Kod ' + hex2(a) : 'Kullanılmıyor')},
+  '12':{l:'İkincil hava', live:true, f:a => ({1:'Katalizör öncesi', 2:'Katalizör sonrası', 4:'Dış hava veya kapalı', 8:'Pompa açık (teşhis)'})[a] || (a ? 'Kod ' + hex2(a) : 'Kapalı')},
+  '13':{l:'O2 sensörleri', f:a => bitsList(a, O2POS)},
+  '1D':{l:'O2 sensörleri', f:a => bitsList(a, ['B1S1','B1S2','B2S1','B2S2','B3S1','B3S2','B4S1','B4S2'])},
+  '1C':{l:'OBD standardı', f:a => OBDSTD[a] || 'Kod ' + a},
+  '51':{l:'Yakıt tipi', f:a => FTYPE[a] || 'Kod ' + a},
+};
+const NOT_RAW = new Set(['00','20','40','60','80','A0','C0','E0','01','02']);
 const DERIVED = {
   batt:{k:'batt', l:'Akü (adaptör)', u:'V',       d:1, g:'elec'},
   l100:{k:'l100', l:'Anlık tüketim', u:'L/100 km',d:1, g:'fuel'},
   lph: {k:'lph',  l:'Anlık tüketim', u:'L/sa',    d:2, g:'fuel'},
 };
-const GROUPS = [['motor','Motor'],['fuel','Yakıt'],['temp','Sıcaklık'],['sensor','Sensörler'],['elec','Elektrik'],['count','Sayaçlar']];
-const META = {}; for (const p in PIDS) META[PIDS[p].k] = PIDS[p]; for (const k in DERIVED) META[k] = DERIVED[k];
-const FF_PIDS = ['05','0C','0D','04','11','0B','0E','0F','06','07','10'];
+const GROUPS = [['motor','Motor'],['fuel','Yakıt'],['temp','Sıcaklık'],['sensor','O2 sensörleri'],['emis','Emisyon'],['elec','Elektrik'],['count','Sayaçlar']];
+const META = {};
+for (const p in PIDS){ META[PIDS[p].k] = PIDS[p]; for (const x of PIDS[p].x || []) META[x.k] = x; }
+for (const k in DERIVED) META[k] = DERIVED[k];
 
 /* ---------- durum ---------- */
 const S = {
   t:null, mode:null, connected:false, busy:false, polling:false, pause:0, isCAN:false,
   supported:new Set(), values:{}, hist:{}, sel:'rpm', est:false, rec:null, done:null, reqs:[],
-  info:{}, mon:null, dtcStored:[], dtcPending:[], lastRead:null, ff:null, wake:null,
+  info:{}, mon:null, dtcStored:[], dtcPending:[], dtcPerm:null, lastRead:null, ff:null, wake:null,
+  txt:{}, raw:{}, m6:null,
   trip:null, cal:{factor:1}, fuel:null, launch:null, crank:null
 };
 
@@ -614,7 +715,9 @@ const SVC = [
   '0000fff0-0000-1000-8000-00805f9b34fb','0000ffe0-0000-1000-8000-00805f9b34fb',
   '000018f0-0000-1000-8000-00805f9b34fb','0000ffb0-0000-1000-8000-00805f9b34fb',
   '0000ae30-0000-1000-8000-00805f9b34fb','0000beef-0000-1000-8000-00805f9b34fb',
-  'e7810a71-73ae-499d-8c15-faa9aef0c3f2'
+  'e7810a71-73ae-499d-8c15-faa9aef0c3f2',
+  '49535343-fe7d-4ae5-8fa9-9fafd205e455', // Microchip/ISSC seri port
+  '6e400001-b5a3-f393-e0a9-e50e24dcca9e'  // Nordic UART
 ];
 const normUuid = u => { u = u.trim().toLowerCase(); if (/^[0-9a-f]{4}$/.test(u)) return `0000${u}-0000-1000-8000-00805f9b34fb`; return u; };
 
@@ -666,17 +769,40 @@ class BleTransport {
 /* ---------- demo ECU ---------- */
 class DemoTransport {
   constructor(){
-    this.t0 = performance.now(); this.stored = ['P0130']; this.pending = ['P0420']; this.cleared = false;
-    this.name = 'Demo ECU'; this.svc = '—'; this.engine = true; this.startAt = null; this.launchAt = null;
-    this.sup = ['01','03','04','05','06','07','0B','0C','0D','0E','0F','11','14','15','1F','20','21','2F','31','33','40','42','46'];
-    this.ff = ['02','04','05','06','07','0B','0C','0D','0E','0F','11'];
+    // Clio III 1.2 16V (D4F) benzeri: MAF yok, iki dar bant O2, CAN 11 bit 500k
+    this.t0 = performance.now(); this.stored = ['P0130']; this.pending = ['P0420']; this.perm = ['P0130']; this.cleared = false;
+    this.name = 'Demo ECU'; this.svc = '—'; this.engine = true; this.startAt = null; this.launchAt = null; this.h = false;
+    this.sup = ['01','03','04','05','06','07','0B','0C','0D','0E','0F','11','13','14','15','1C','1F','20','21','2E','2F','30','31','33','40','41','42','43','44','45','49','4A','4D','4E'];
+    this.ff = ['02','03','04','05','06','07','0B','0C','0D','0E','0F','11'];
+    this.m6 = {
+      '01':[[0x01,0x0B,450,400,500],[0x05,0x10,62,0,120],[0x06,0x10,70,0,120]],
+      '02':[[0x07,0x0B,120,0,400],[0x08,0x0B,790,600,1100]],
+      '21':[[0x80,0x01,34,0,100]],
+      '41':[[0x80,0x14,8,3,15]], '42':[[0x80,0x14,9,3,15]],
+      'A2':[[0x0B,0x24,0,0,65535],[0x0C,0x24,0,0,65535]], 'A3':[[0x0B,0x24,2,0,65535],[0x0C,0x24,1,0,65535]],
+      'A4':[[0x0B,0x24,0,0,65535],[0x0C,0x24,0,0,65535]], 'A5':[[0x0B,0x24,0,0,65535],[0x0C,0x24,0,0,65535]],
+    };
+    this.m6sup = [...Object.keys(this.m6), '20','40','60','80','A0'];
     this.vin = 'VF1BRDEMOECU00001';
   }
   open(){ return Promise.resolve(); }
   close(){}
   setEngine(on){ this.engine = on; }
   scheduleStart(ms){ this.startAt = performance.now() + ms; }
-  send(c){ return new Promise(r => setTimeout(() => r(this.reply(c.toUpperCase().replace(/\s/g,''))), 30 + Math.random()*30)); }
+  send(c){
+    return new Promise(r => setTimeout(() => {
+      let out = this.reply(c.toUpperCase().replace(/\s/g,''));
+      if (this.h && /^[0-9A-F]+$/.test(out) && out.length <= 14) out = '7E8' + hex2(out.length/2) + out;
+      r(out);
+    }, 30 + Math.random()*30));
+  }
+  isotp(hex){
+    const n = hex.length/2; if (n <= 7) return hex;
+    let out = n.toString(16).toUpperCase().padStart(3,'0') + '\r0:' + hex.slice(0,12);
+    for (let i=12, s=1; i<hex.length; i+=14, s++) out += `\r${(s%16).toString(16).toUpperCase()}:` + hex.slice(i,i+14).padEnd(14,'0');
+    return out;
+  }
+  ascii(s, len){ return [...s.padEnd(len, '\0')].map(ch=>hex2(ch.charCodeAt(0))).join(''); }
   tickEngine(){ if (this.startAt && performance.now() > this.startAt + 1300){ this.engine = true; this.startAt = null; this.t0 = performance.now(); } }
   sim(){
     this.tickEngine();
@@ -711,6 +837,7 @@ class DemoTransport {
     if (c==='ATRV') return this.volt().toFixed(1)+'V';
     if (c==='ATDPN') return 'A6';
     if (c==='ATDP') return 'AUTO, ISO 15765-4 (CAN 11/500)';
+    if (c==='ATH1' || c==='ATH0'){ this.h = c==='ATH1'; return 'OK'; }
     if (c.startsWith('AT')) return 'OK';
     if (c==='0100') return '4100'+this.mask(this.sup,0);
     if (c==='0120') return '4120'+this.mask(this.sup,32);
@@ -718,24 +845,36 @@ class DemoTransport {
     if (c==='0101'){ const a=(this.stored.length?0x80:0)|this.stored.length; return '4101'+hex2(a)+'07'+'65'+(this.cleared?'65':'04'); }
     if (c==='03') return '43'+hex2(this.stored.length)+this.stored.map(x=>this.enc(x)).join('');
     if (c==='07') return '47'+hex2(this.pending.length)+this.pending.map(x=>this.enc(x)).join('');
-    if (c==='0A') return 'NO DATA';
+    if (c==='0A') return '4A'+hex2(this.perm.length)+this.perm.map(x=>this.enc(x)).join('');
     if (c==='04'){ this.stored=[]; this.pending=[]; this.cleared=true; return '44'; }
-    if (c==='0902'){ const h = [...this.vin].map(ch=>hex2(ch.charCodeAt(0))).join(''); return `014\r0:490201${h.slice(0,6)}\r1:${h.slice(6,20)}\r2:${h.slice(20,34)}`; }
+    if (c==='0902') return this.isotp('490201' + this.ascii(this.vin, 17));
+    if (c==='0904') return this.isotp('490401' + this.ascii('8200999999DEMO', 16));
+    if (c==='0906') return '490601A1B2C3D4';
+    if (c==='090A') return this.isotp('490A01' + this.ascii('ECM-EngineControl', 20));
+    if (/^06[0-9A-F]{2}$/.test(c)){
+      const mid = c.slice(2);
+      if (['00','20','40','60','80','A0'].includes(mid)) return this.isotp('46'+mid+this.mask(this.m6sup, parseInt(mid,16)));
+      const recs = this.m6[mid]; if (!recs) return 'NO DATA';
+      const w = v => hex2(v>>8&255)+hex2(v&255);
+      return this.isotp('46' + recs.map(([tid,uas,v,mn,mx]) => mid+hex2(tid)+hex2(uas)+w(v)+w(mn)+w(mx)).join(''));
+    }
     if (c==='020000') return '420000'+this.mask(this.ff,0);
     if (c.startsWith('02') && c.length===6){
       const p = c.slice(2,4);
       if (p==='02') return '420200'+(this.stored.length ? this.enc(this.stored[0]) : '0000');
       if (!this.stored.length || !this.ff.includes(p)) return 'NO DATA';
-      const snap = {'04':'69','05':'80','06':'88','07':'8B','0B':'34','0C':'2648','0D':'3F','0E':'AA','0F':'43','11':'38'};
+      const snap = {'03':'0200','04':'69','05':'80','06':'88','07':'8B','0B':'34','0C':'2648','0D':'3F','0E':'AA','0F':'43','11':'38'};
       return '42'+p+'00'+snap[p];
     }
     if (c.startsWith('01') && c.length===4){
       const p = c.slice(2); if (!this.sup.includes(p)) return 'NO DATA';
       const s = this.sim(), B = v=>hex2(clamp(Math.round(v),0,255)), W = v=>{ v=Math.max(0,Math.round(v)); return hex2(v>>8&255)+hex2(v&255); };
       const o2 = s.rpm ? 0.45+0.38*Math.sin(s.t*5.3) : 0.05;
-      const m = {'03':'0200','04':B(s.load*2.55),'05':B(s.cool+40),'06':B(128+(Math.random()-.5)*6),'07':B(131),'0B':B(s.map),'0C':W(s.rpm*4),'0D':B(s.sp),
-        '0E':B((s.th>0?14:8)*2+128),'0F':B(s.iat+40),'11':B((s.th*0.9+8)*2.55),'14':B(o2*200)+'FF','15':B(0.66*200)+'FF','1F':W(s.rpm?s.t+42:0),
-        '21':W(this.stored.length?86:0),'2F':B(158),'31':W(this.cleared?0:1240),'33':B(101),'42':W(s.rpm?14100:12500),'46':B(58)};
+      const m = {'03':s.rpm?'0200':'0100','04':B(s.load*2.55),'05':B(s.cool+40),'06':B(128+(Math.random()-.5)*6),'07':B(131),'0B':B(s.map),'0C':W(s.rpm*4),'0D':B(s.sp),
+        '0E':B((s.th>0?14:8)*2+128),'0F':B(s.iat+40),'11':B((s.th*0.9+8)*2.55),'13':'03','14':B(o2*200)+B(128+(Math.random()-.5)*6),'15':B(0.66*200)+'FF','1C':'06','1F':W(s.rpm?s.t+42:0),
+        '21':W(this.stored.length?86:0),'2E':B(s.th>0?22*2.55:0),'2F':B(158),'30':B(this.cleared?1:40),'31':W(this.cleared?0:1240),'33':B(101),
+        '41':'00076504','42':W(s.rpm?14100:12500),'43':W(s.load*0.92*2.55),'44':W(s.th>90?0.88*32768:32768),'45':B(s.th*0.95*2.55),
+        '49':B((s.th*0.8+15)*2.55),'4A':B((s.th*0.4+7)*2.55),'4D':W(this.stored.length?95:0),'4E':W(this.cleared?2:8650)};
       return '41'+p+m[p];
     }
     return '?';
@@ -783,18 +922,40 @@ function parseDtc(r, rb){
   } else ls.forEach(l => take(l, false));
   return [...codes];
 }
-function parseVin(r){
+// Çok çerçeveli CAN yanıtını (ilk satır bayt sayısı, sonra "0:", "1:" …) tek hex dizisine çevirir; key'den itibaren döner
+function frames(r, key){
   const ls = lines(r).filter(l => /^[0-9A-F:]+$/.test(l));
-  let hex = '';
-  if (ls.some(l => /^[0-9A-F]:/.test(l))){
-    hex = ls.filter(l => /^[0-9A-F]:/.test(l)).map(l => l.slice(2)).join('');
-    const i = hex.indexOf('4902'); if (i < 0) return null; hex = hex.slice(i+6);
-  } else {
-    const parts = ls.filter(l => l.startsWith('4902')).map(l => ({n:parseInt(l.substr(4,2),16), d:l.slice(6)})).sort((a,b) => a.n-b.n);
-    if (!parts.length) return null; hex = parts.map(p => p.d).join('');
-  }
-  let s = ''; for (let i=0;i+1<hex.length;i+=2){ const c = parseInt(hex.substr(i,2),16); if (c>=0x30 && c<=0x5A) s += String.fromCharCode(c); }
+  if (!ls.some(l => /^[0-9A-F]:/.test(l))) return null;
+  const lenLine = ls.find(l => /^[0-9A-F]{3}$/.test(l));
+  let hex = ls.filter(l => /^[0-9A-F]:/.test(l)).map(l => l.slice(2)).join('');
+  if (lenLine) hex = hex.slice(0, parseInt(lenLine,16)*2);
+  const i = hex.indexOf(key); return i < 0 ? null : hex.slice(i);
+}
+// Mode 09: "49 PID adet veri…" — CAN'de tek parça, K-line'da sıra numaralı satırlar
+function mode9(r, pid){
+  const key = '49'+pid, f = frames(r, key);
+  if (f) return f.slice(6);
+  const parts = lines(r).filter(l => l.startsWith(key)).map(l => ({n:parseInt(l.substr(4,2),16), d:l.slice(6)})).sort((a,b) => a.n-b.n);
+  return parts.length ? parts.map(p => p.d).join('') : null;
+}
+const hexAscii = hex => { let s = ''; for (let i=0;i+1<hex.length;i+=2){ const c = parseInt(hex.substr(i,2),16); if (c>=0x20 && c<0x7F) s += String.fromCharCode(c); } return s; };
+function parseVin(r){
+  const hex = mode9(r, '02'); if (!hex) return null;
+  const s = hexAscii(hex).replace(/[^0-9A-Z]/g,'');
   return s.length >= 17 ? s.slice(-17) : null;
+}
+function parseCalid(r){
+  const hex = mode9(r, '04'); if (!hex) return null;
+  const ids = []; for (let i=0;i<hex.length;i+=32){ const s = hexAscii(hex.substr(i,32)).trim(); if (s) ids.push(s); }
+  return ids.length ? ids.join(', ') : null;
+}
+function parseCvn(r){
+  const hex = mode9(r, '06'); if (!hex) return null;
+  const ids = hex.match(/.{8}/g) || []; return ids.length ? ids.join(', ') : null;
+}
+function parseEcuName(r){
+  const hex = mode9(r, '0A'); if (!hex) return null;
+  const s = hexAscii(hex).replace(/\s+/g,' ').trim(); return s || null;
 }
 
 /* ---------- bağlantı akışı ---------- */
@@ -803,7 +964,7 @@ function setControls(){
   const on = S.connected, testBusy = !!(S.launch || S.crank || S.bTest);
   $('#btnConnect').textContent = on ? (S.mode==='demo' ? 'Demoyu durdur' : 'Bağlantıyı kes') : 'Bağlan';
   $('#btnConnect').disabled = !on && (S.busy || !hasBt);
-  for (const id of ['#btnRead','#btnClear','#btnSend']) $(id).disabled = !on;
+  for (const id of ['#btnRead','#btnClear','#btnSend','#btnM6']) $(id).disabled = !on;
   for (const id of ['#btnRest','#btnCharge','#btnChargeL']) $(id).disabled = !on || testBusy;
   $('#btnCrank').disabled = !on || (testBusy && !S.crank);
   $('#btnLaunch').disabled = !on || (testBusy && !S.launch);
@@ -843,23 +1004,47 @@ async function initElm(){
   S.info = {name:S.t.name, svc:S.t.svc, time:new Date()};
   await cmd('ATZ', 5000);
   for (const c of ['ATE0','ATL0','ATS0','ATH0','ATAT1']) await cmd(c);
-  S.info.ver = lines(await cmd('ATI')).join(' ') || '–';
+  const txtLines = r => r.split(/[\r\n]+/).map(s => s.trim()).filter(s => s && !/^(OK|>|SEARCHING)/i.test(s));
+  S.info.ver = txtLines(await cmd('ATI')).join(' ') || '–';
   await cmd('ATSP' + settings.proto);
   S.supported.clear();
   const b0 = pidBytes(await cmd('0100', 15000), 1, '00');
   if (!b0 || b0.length < 4) throw Object.assign(new Error('ECU yanıt vermedi'), {code:'NO_ECU'});
   addMask(S.supported, b0, 0);
-  for (const [p, base] of [['20',32],['40',64]]){
-    if (!S.supported.has(p)) break;
+  for (let base = 0x20; base <= 0xE0; base += 0x20){
+    const p = hex2(base); if (!S.supported.has(p)) break;
     const b = pidBytes(await cmd('01'+p), 1, p); if (!b || b.length < 4) break; addMask(S.supported, b, base);
   }
   const dpn = lines(await cmd('ATDPN')).join('');
   S.isCAN = /[6-9A-C]/.test(dpn.replace(/^A/,'').slice(-1));
   S.info.protoN = dpn || '–';
-  S.info.proto = lines(await cmd('ATDP')).join(' ').replace(/^AUTO,?/,'').trim() || '–';
-  S.info.pids = [...S.supported].filter(p => !['00','20','40','60'].includes(p)).length;
-  const rv = await cmd('0902', 6000);
-  S.info.vin = bad(rv) ? null : parseVin(rv);
+  S.info.proto = txtLines(await cmd('ATDP')).join(' ').replace(/^AUTO,?/,'').trim() || '–';
+  S.info.pids = [...S.supported].filter(p => !NOT_RAW.has(p)).length;
+  S.info.ecus = await findEcus();
+  const m9 = async (pid, parse) => { const r = await cmd('09'+pid, 6000); return bad(r) ? null : parse(r); };
+  S.info.vin = await m9('02', parseVin);
+  S.info.calid = await m9('04', parseCalid);
+  S.info.cvn = await m9('06', parseCvn);
+  S.info.ecuName = S.isCAN ? await m9('0A', parseEcuName) : null;
+  S.txt = {}; S.raw = {};
+  for (const p in TXT) if (S.supported.has(p)) await readPid(p, false);
+}
+// Başlıkları kısa süre açıp 0100'a kimlerin yanıt verdiğine bakar
+const ECU_NAMES = {'7E8':'Motor','7E9':'Şanzıman','7EA':'Hibrit/ABS','10':'Motor','18':'Şanzıman'};
+async function findEcus(){
+  const found = new Set();
+  try {
+    await cmd('ATH1');
+    for (const l of lines(await cmd('0100', 6000))){
+      if (!/^[0-9A-F]+$/.test(l) || !/4100/.test(l)) continue;
+      let id;
+      if (/^7E[8-F]/.test(l)) id = l.slice(0,3);
+      else if (/^18DAF1/.test(l)) id = l.slice(6,8);
+      else if (l.length >= 6) id = l.slice(4,6);
+      if (id) found.add(id);
+    }
+  } finally { await cmd('ATH0'); }
+  return [...found].map(id => `${ECU_NAMES[id] || 'ECU'} (${id})`);
 }
 function addMask(set, b, base){ for (let i=0;i<32;i++) if (b[i>>3] & (0x80>>(i&7))) set.add(hex2(base+i+1)); }
 
@@ -878,18 +1063,29 @@ function onLinkLost(){ if (S.connected) stop('Bağlantı koptu'); }
 
 /* ---------- canlı veri döngüsü ---------- */
 function activePids(){ return Object.keys(PIDS).filter(p => S.supported.has(p)); }
+function rawPids(){ return [...S.supported].filter(p => !PIDS[p] && !TXT[p] && !NOT_RAW.has(p)).sort(); }
+function decodePid(p, b, into){
+  const d = PIDS[p];
+  if (d){
+    const ok = b && b.length >= d.n;
+    into[d.k] = ok ? d.f(...b) : null;
+    for (const x of d.x || []){ const v = ok ? x.f(...b) : null; into[x.k] = v != null && isFinite(v) ? v : null; }
+    return into[d.k];
+  }
+  if (TXT[p]) return S.txt[p] = b && b.length ? TXT[p].f(...b) : null;
+  return S.raw[p] = b && b.length ? b.map(hex2).join(' ') : 'yanıt yok';
+}
 async function readPid(p, quiet=true){
   const r = await cmd('01'+p, 3000, quiet);
-  const d = PIDS[p], b = pidBytes(r, 1, p);
-  S.values[d.k] = (b && b.length >= d.n) ? d.f(b[0], b[1]) : null;
-  return S.values[d.k];
+  return decodePid(p, pidBytes(r, 1, p), S.values);
 }
 async function poll(){
-  const act = activePids(), fast = act.filter(p=>PIDS[p].fast), slow = act.filter(p=>!PIDS[p].fast);
+  const act = activePids(), fast = act.filter(p=>PIDS[p].fast);
+  const slow = act.filter(p=>!PIDS[p].fast).concat(Object.keys(TXT).filter(p => TXT[p].live && S.supported.has(p)), rawPids());
   let cycle = 0;
   while (S.polling){
     if (S.pause > 0){ await sleep(120); continue; }
-    const batch = cycle === 0 ? [...act] : [...fast];
+    const batch = cycle === 0 ? [...fast, ...slow] : [...fast];
     if (cycle > 0 && slow.length) batch.push(slow[cycle % slow.length]);
     if (cycle % 8 === 0) batch.push('RV');
     try {
@@ -912,9 +1108,13 @@ function derive(){
     maf = v.rpm * v.map / (v.iat + 273.15) / 120 * settings.ve * (settings.cc/1000) * 28.97 / 8.314;
     S.est = true;
   }
-  if (maf == null){ v.lphRaw = v.lph = v.l100 = null; return; }
-  const cut = v.throttle != null && v.throttle < 1.5 && v.rpm > 1300 && v.speed > 5;
-  v.lphRaw = cut ? 0 : maf / 14.7 * 3600 / 740;
+  if (v.fuelRate != null){ S.est = false; v.lphRaw = v.fuelRate; }
+  else if (maf == null){ v.lphRaw = v.lph = v.l100 = null; return; }
+  else {
+    const cut = v.throttle != null && v.throttle < 1.5 && v.rpm > 1300 && v.speed > 5;
+    const afr = 14.7 * (v.lambdaCmd > 0.5 && v.lambdaCmd < 1.5 ? v.lambdaCmd : 1);
+    v.lphRaw = cut ? 0 : maf / afr * 3600 / 740;
+  }
   v.lph = v.lphRaw * S.cal.factor;
   v.l100 = v.speed > 3 ? v.lph / v.speed * 100 : null;
 }
@@ -1106,8 +1306,8 @@ function buildGauge(){
   $('#rpmGauge').innerHTML = s;
 }
 function buildTiles(){
-  const keys = activePids().map(p=>PIDS[p].k).concat(['batt']);
-  if (S.supported.has('10') || (S.supported.has('0B') && S.supported.has('0F') && S.supported.has('0C'))) keys.push('l100','lph');
+  const keys = activePids().flatMap(p => [PIDS[p].k, ...(PIDS[p].x || []).map(x => x.k)]).concat(['batt']);
+  if (S.supported.has('5E') || S.supported.has('10') || (S.supported.has('0B') && S.supported.has('0F') && S.supported.has('0C'))) keys.push('l100','lph');
   let html = '';
   for (const [g, name] of GROUPS){
     const ks = keys.filter(k => META[k].g === g); if (!ks.length) continue;
@@ -1116,6 +1316,7 @@ function buildTiles(){
     html += `</div></div>`;
   }
   $('#tilesCard').innerHTML = html;
+  S.keys = GROUPS.flatMap(([g]) => keys.filter(k => META[k].g === g));
   if (!keys.includes(S.sel)) S.sel = keys[0];
 }
 $('#tilesCard').addEventListener('click', e => {
@@ -1139,6 +1340,10 @@ function render(){
   else if (c <= 104){ tp.className='pill ok'; tp.textContent='Normal'; }
   else { tp.className='pill crit'; tp.textContent='Yüksek'; }
   $('#kvBatt').textContent = v.batt == null ? '–' : NF(v.batt,1) + ' V';
+  $('#kvFsys').textContent = S.txt['03'] || '–';
+  const raw = rawPids();
+  $('#rawCard').hidden = !raw.length;
+  if (raw.length) $('#rawRows').innerHTML = raw.map(p => `<tr><td class="code">01 ${p}</td><td class="mono">${S.raw[p] || '…'}</td></tr>`).join('');
   const now = performance.now(); S.reqs = S.reqs.filter(t => now - t < 3000);
   $('#kvRate').textContent = NF(S.reqs.length/3, 1) + ' istek/sn';
   for (const k in META){
@@ -1191,18 +1396,18 @@ window.addEventListener('resize', () => { drawChart(); if (S.crankSamples) drawL
 /* ---------- CSV kaydı ---------- */
 function record(){
   if (!S.rec) return;
-  const row = {ts: isoLocal(new Date())}; for (const k in META) row[k] = S.values[k];
+  const row = {ts: isoLocal(new Date())}; for (const k of S.rec.keys) row[k] = S.values[k];
   S.rec.rows.push(row); $('#recRows').textContent = NF(S.rec.rows.length);
 }
 $('#btnRec').addEventListener('click', () => {
   if (S.rec){ S.done = S.rec; S.rec = null; $('#btnRec').textContent = 'Kaydı başlat'; $('#btnCsv').disabled = !S.done.rows.length; return; }
-  S.rec = {start:new Date(), rows:[]}; S.done = null;
+  S.rec = {start:new Date(), rows:[], keys:[...(S.keys || Object.keys(META))]}; S.done = null;
   $('#recStart').textContent = fmtDT(S.rec.start); $('#recRows').textContent = '0';
   $('#btnRec').textContent = 'Kaydı durdur'; $('#btnCsv').disabled = true;
 });
 $('#btnCsv').addEventListener('click', () => {
   const r = S.done; if (!r || !r.rows.length) return;
-  const keys = Object.keys(META);
+  const keys = r.keys;
   const q = s => `"${String(s).replace(/"/g,'""')}"`;
   const head = ['zaman', ...keys.map(k => `${META[k].l} (${META[k].u})`)];
   const csv = [head.map(q).join(';'), ...r.rows.map(row => [row.ts, ...keys.map(k => row[k]==null ? '' : String(+row[k].toFixed(3)).replace('.',','))].join(';'))].join('\r\n');
@@ -1213,30 +1418,79 @@ $('#btnCsv').addEventListener('click', () => {
 
 /* ---------- arıza kodları ---------- */
 const DTC_TR = {
-  P0010:'Eksantrik ayar aktüatörü devresi (bank 1)', P0011:'Eksantrik zamanlaması fazla avanslı (bank 1)', P0016:'Krank ve eksantrik sensörü uyumsuz',
-  P0100:'Hava akış (MAF) sensörü devresi', P0101:'MAF sensörü aralık/performans', P0102:'MAF sensörü düşük giriş', P0103:'MAF sensörü yüksek giriş',
-  P0105:'Manifold basınç (MAP) sensörü devresi', P0106:'MAP sensörü aralık/performans', P0107:'MAP sensörü düşük giriş', P0108:'MAP sensörü yüksek giriş',
-  P0110:'Emme havası sıcaklık sensörü devresi', P0112:'Emme havası sıcaklık sensörü düşük giriş', P0113:'Emme havası sıcaklık sensörü yüksek giriş',
-  P0115:'Motor suyu sıcaklık sensörü devresi', P0116:'Su sıcaklık sensörü aralık/performans', P0117:'Su sıcaklık sensörü düşük giriş', P0118:'Su sıcaklık sensörü yüksek giriş',
-  P0120:'Gaz kelebeği/pedal konum sensörü A devresi', P0121:'Gaz kelebeği sensörü A aralık/performans', P0122:'Gaz kelebeği sensörü A düşük giriş', P0123:'Gaz kelebeği sensörü A yüksek giriş',
-  P0125:'Kapalı devre yakıt kontrolü için su sıcaklığı yetersiz', P0128:'Su sıcaklığı termostat değerinin altında (termostat)',
-  P0130:'O2 sensörü devresi (bank 1, sensör 1)', P0131:'O2 sensörü düşük voltaj (B1S1)', P0132:'O2 sensörü yüksek voltaj (B1S1)', P0133:'O2 sensörü yavaş tepki (B1S1)',
-  P0134:'O2 sensöründe aktivite yok (B1S1)', P0135:'O2 sensörü ısıtıcı devresi (B1S1)', P0136:'O2 sensörü devresi (bank 1, sensör 2)', P0137:'O2 sensörü düşük voltaj (B1S2)',
-  P0138:'O2 sensörü yüksek voltaj (B1S2)', P0140:'O2 sensöründe aktivite yok (B1S2)', P0141:'O2 sensörü ısıtıcı devresi (B1S2)',
+  // Değişken supap zamanlaması, krank/eksantrik uyumu
+  P0010:'Eksantrik ayar aktüatörü A devresi (bank 1)', P0011:'Eksantrik A zamanlaması fazla avanslı (bank 1)', P0012:'Eksantrik A zamanlaması fazla geride (bank 1)',
+  P0013:'Eksantrik ayar aktüatörü B devresi (bank 1)', P0014:'Eksantrik B zamanlaması fazla avanslı (bank 1)', P0016:'Krank ve eksantrik A sensörü uyumsuz (bank 1)', P0017:'Krank ve eksantrik B sensörü uyumsuz (bank 1)',
+  // O2 ısıtıcıları
+  P0030:'O2 ısıtıcı kontrol devresi (B1S1)', P0031:'O2 ısıtıcı devresi düşük (B1S1)', P0032:'O2 ısıtıcı devresi yüksek (B1S1)',
+  P0036:'O2 ısıtıcı kontrol devresi (B1S2)', P0037:'O2 ısıtıcı devresi düşük (B1S2)', P0038:'O2 ısıtıcı devresi yüksek (B1S2)',
+  P0068:'Manifold basıncı / hava akışı ile gaz kelebeği uyumsuz', P0069:'Manifold basıncı ile atmosfer basıncı uyumsuz',
+  P0070:'Dış hava sıcaklık sensörü devresi', P0071:'Dış hava sıcaklık sensörü aralık/performans', P0072:'Dış hava sıcaklık sensörü düşük giriş', P0073:'Dış hava sıcaklık sensörü yüksek giriş',
+  // Hava ve yakıt ölçümü
+  P0100:'Hava akış (MAF) sensörü devresi', P0101:'MAF sensörü aralık/performans', P0102:'MAF sensörü düşük giriş', P0103:'MAF sensörü yüksek giriş', P0104:'MAF sensörü kesintili',
+  P0105:'Manifold basınç (MAP) sensörü devresi', P0106:'MAP sensörü aralık/performans', P0107:'MAP sensörü düşük giriş', P0108:'MAP sensörü yüksek giriş', P0109:'MAP sensörü kesintili',
+  P0110:'Emme havası sıcaklık sensörü devresi', P0111:'Emme havası sıcaklık sensörü aralık/performans', P0112:'Emme havası sıcaklık sensörü düşük giriş', P0113:'Emme havası sıcaklık sensörü yüksek giriş', P0114:'Emme havası sıcaklık sensörü kesintili',
+  P0115:'Motor suyu sıcaklık sensörü devresi', P0116:'Su sıcaklık sensörü aralık/performans', P0117:'Su sıcaklık sensörü düşük giriş', P0118:'Su sıcaklık sensörü yüksek giriş', P0119:'Su sıcaklık sensörü kesintili',
+  P0120:'Gaz kelebeği/pedal konum sensörü A devresi', P0121:'Gaz kelebeği sensörü A aralık/performans', P0122:'Gaz kelebeği sensörü A düşük giriş', P0123:'Gaz kelebeği sensörü A yüksek giriş', P0124:'Gaz kelebeği sensörü A kesintili',
+  P0125:'Kapalı devre yakıt kontrolü için su sıcaklığı yetersiz', P0126:'Kararlı çalışma için su sıcaklığı yetersiz', P0127:'Emme havası sıcaklığı çok yüksek',
+  P0128:'Su sıcaklığı termostat değerinin altında (termostat)',
+  // O2 sensörleri
+  P0130:'O2 sensörü devresi (B1S1)', P0131:'O2 sensörü düşük voltaj (B1S1)', P0132:'O2 sensörü yüksek voltaj (B1S1)', P0133:'O2 sensörü yavaş tepki (B1S1)', P0134:'O2 sensöründe aktivite yok (B1S1)', P0135:'O2 sensörü ısıtıcı devresi (B1S1)',
+  P0136:'O2 sensörü devresi (B1S2)', P0137:'O2 sensörü düşük voltaj (B1S2)', P0138:'O2 sensörü yüksek voltaj (B1S2)', P0139:'O2 sensörü yavaş tepki (B1S2)', P0140:'O2 sensöründe aktivite yok (B1S2)', P0141:'O2 sensörü ısıtıcı devresi (B1S2)',
   P0170:'Yakıt trimi arızası (bank 1)', P0171:'Karışım çok fakir (bank 1)', P0172:'Karışım çok zengin (bank 1)',
+  P0190:'Yakıt rampası basınç sensörü devresi', P0191:'Yakıt rampası basınç sensörü aralık/performans', P0192:'Yakıt rampası basınç sensörü düşük giriş', P0193:'Yakıt rampası basınç sensörü yüksek giriş',
+  // Enjektörler ve yakıt pompası
   P0200:'Enjektör devresi', P0201:'Enjektör devresi, silindir 1', P0202:'Enjektör devresi, silindir 2', P0203:'Enjektör devresi, silindir 3', P0204:'Enjektör devresi, silindir 4',
-  P0230:'Yakıt pompası birincil devresi', P0300:'Rastgele/çoklu silindir tekleme', P0301:'Silindir 1 tekleme', P0302:'Silindir 2 tekleme', P0303:'Silindir 3 tekleme', P0304:'Silindir 4 tekleme',
-  P0325:'Vuruntu sensörü 1 devresi', P0327:'Vuruntu sensörü düşük giriş', P0328:'Vuruntu sensörü yüksek giriş',
-  P0335:'Krank mili konum sensörü A devresi', P0336:'Krank mili konum sensörü aralık/performans', P0340:'Eksantrik mili konum sensörü devresi',
-  P0351:'Ateşleme bobini A devresi', P0352:'Ateşleme bobini B devresi', P0353:'Ateşleme bobini C devresi', P0354:'Ateşleme bobini D devresi',
-  P0400:'EGR akış arızası', P0420:'Katalizör verimi eşiğin altında (bank 1)', P0440:'Buharlaşma (EVAP) sistemi arızası',
-  P0443:'EVAP kanister boşaltma valfi devresi', P0455:'EVAP sisteminde büyük kaçak', P0480:'Soğutma fanı 1 kontrol devresi',
-  P0500:'Araç hız sensörü', P0505:'Rölanti kontrol sistemi', P0506:'Rölanti beklenenden düşük', P0507:'Rölanti beklenenden yüksek',
-  P0560:'Sistem voltajı', P0562:'Sistem voltajı düşük', P0563:'Sistem voltajı yüksek',
-  P0600:'Seri iletişim hattı', P0601:'ECU hafıza kontrol toplamı hatası', P0603:'ECU kalıcı hafıza hatası', P0605:'ECU ROM hatası', P0606:'ECU işlemci arızası',
-  P0641:'Sensör referans voltajı A devresi', P0650:'Arıza lambası (MIL) kontrol devresi', P0700:'Şanzıman kontrol sistemi arıza bildiriyor',
-  P2096:'Katalizör sonrası yakıt trimi çok fakir', P2097:'Katalizör sonrası yakıt trimi çok zengin', P2135:'Gaz kelebeği/pedal sensörü A-B voltaj uyumsuzluğu',
-  U0001:'Yüksek hızlı CAN iletişim hattı', U0100:'Motor ECU ile iletişim kaybı', U0121:'ABS modülü ile iletişim kaybı', U0155:'Gösterge paneli ile iletişim kaybı'
+  P0217:'Motor aşırı ısınma durumu', P0219:'Motor aşırı devir durumu',
+  P0220:'Gaz kelebeği/pedal konum sensörü B devresi', P0221:'Gaz kelebeği sensörü B aralık/performans', P0222:'Gaz kelebeği sensörü B düşük giriş', P0223:'Gaz kelebeği sensörü B yüksek giriş',
+  P0230:'Yakıt pompası birincil devresi', P0231:'Yakıt pompası ikincil devresi düşük', P0232:'Yakıt pompası ikincil devresi yüksek',
+  P0261:'Enjektör 1 devresi düşük', P0262:'Enjektör 1 devresi yüksek', P0264:'Enjektör 2 devresi düşük', P0265:'Enjektör 2 devresi yüksek',
+  P0267:'Enjektör 3 devresi düşük', P0268:'Enjektör 3 devresi yüksek', P0270:'Enjektör 4 devresi düşük', P0271:'Enjektör 4 devresi yüksek',
+  // Ateşleme ve tekleme
+  P0300:'Rastgele/çoklu silindir tekleme', P0301:'Silindir 1 tekleme', P0302:'Silindir 2 tekleme', P0303:'Silindir 3 tekleme', P0304:'Silindir 4 tekleme',
+  P0313:'Düşük yakıt seviyesinde tekleme', P0315:'Krank konum sistemi sapması öğrenilmemiş',
+  P0320:'Ateşleme/devir giriş devresi', P0321:'Ateşleme/devir giriş devresi aralık/performans', P0322:'Ateşleme/devir girişinde sinyal yok',
+  P0325:'Vuruntu sensörü 1 devresi', P0326:'Vuruntu sensörü 1 aralık/performans', P0327:'Vuruntu sensörü 1 düşük giriş', P0328:'Vuruntu sensörü 1 yüksek giriş', P0329:'Vuruntu sensörü 1 kesintili',
+  P0335:'Krank mili konum sensörü A devresi', P0336:'Krank mili konum sensörü aralık/performans', P0337:'Krank mili konum sensörü düşük giriş', P0338:'Krank mili konum sensörü yüksek giriş', P0339:'Krank mili konum sensörü kesintili',
+  P0340:'Eksantrik mili konum sensörü A devresi', P0341:'Eksantrik mili konum sensörü aralık/performans', P0342:'Eksantrik mili konum sensörü düşük giriş', P0343:'Eksantrik mili konum sensörü yüksek giriş', P0344:'Eksantrik mili konum sensörü kesintili',
+  P0350:'Ateşleme bobini birincil/ikincil devresi', P0351:'Ateşleme bobini A devresi', P0352:'Ateşleme bobini B devresi', P0353:'Ateşleme bobini C devresi', P0354:'Ateşleme bobini D devresi',
+  // Emisyon kontrolü
+  P0400:'EGR akış arızası', P0401:'EGR akışı yetersiz', P0402:'EGR akışı fazla', P0410:'İkincil hava enjeksiyon sistemi',
+  P0420:'Katalizör verimi eşiğin altında (bank 1)', P0421:'Ön ısıtma katalizörü verimi eşiğin altında (bank 1)', P0422:'Ana katalizör verimi eşiğin altında (bank 1)',
+  P0440:'Buharlaşma (EVAP) sistemi arızası', P0441:'EVAP boşaltma akışı hatalı', P0442:'EVAP sisteminde küçük kaçak', P0443:'EVAP kanister boşaltma valfi devresi',
+  P0444:'EVAP boşaltma valfi devresi açık', P0445:'EVAP boşaltma valfi devresi kısa devre', P0446:'EVAP havalandırma kontrol devresi', P0455:'EVAP sisteminde büyük kaçak', P0456:'EVAP sisteminde çok küçük kaçak',
+  P0460:'Yakıt seviye sensörü devresi', P0461:'Yakıt seviye sensörü aralık/performans', P0462:'Yakıt seviye sensörü düşük giriş', P0463:'Yakıt seviye sensörü yüksek giriş', P0464:'Yakıt seviye sensörü kesintili',
+  P0480:'Soğutma fanı 1 kontrol devresi', P0481:'Soğutma fanı 2 kontrol devresi',
+  // Hız ve rölanti
+  P0500:'Araç hız sensörü', P0501:'Araç hız sensörü aralık/performans', P0502:'Araç hız sensörü düşük giriş', P0503:'Araç hız sensörü kesintili/düzensiz/yüksek',
+  P0505:'Rölanti kontrol sistemi', P0506:'Rölanti beklenenden düşük', P0507:'Rölanti beklenenden yüksek', P0508:'Rölanti kontrol devresi düşük', P0509:'Rölanti kontrol devresi yüksek',
+  P0510:'Kapalı gaz kelebeği konum anahtarı',
+  P0530:'Klima gaz basınç sensörü devresi', P0532:'Klima gaz basınç sensörü düşük giriş', P0533:'Klima gaz basınç sensörü yüksek giriş',
+  P0560:'Sistem voltajı', P0561:'Sistem voltajı kararsız', P0562:'Sistem voltajı düşük', P0563:'Sistem voltajı yüksek', P0571:'Fren anahtarı A devresi',
+  // ECU ve çıkış devreleri
+  P0600:'Seri iletişim hattı', P0601:'ECU hafıza kontrol toplamı hatası', P0602:'ECU programlama hatası', P0603:'ECU kalıcı hafıza (KAM) hatası',
+  P0604:'ECU RAM hatası', P0605:'ECU ROM hatası', P0606:'ECU işlemci arızası', P0607:'ECU performansı',
+  P0615:'Marş rölesi devresi', P0627:'Yakıt pompası kontrol devresi açık', P0630:'ECU\'da şasi no programlanmamış veya uyumsuz',
+  P0638:'Gaz kelebeği aktüatörü aralık/performans (bank 1)', P0641:'Sensör referans voltajı A devresi', P0645:'Klima kompresör rölesi kontrol devresi',
+  P0650:'Arıza lambası (MIL) kontrol devresi', P0651:'Sensör referans voltajı B devresi', P0685:'ECU güç rölesi kontrol devresi', P0688:'ECU güç rölesi algılama devresi',
+  P0700:'Şanzıman kontrol sistemi arıza bildiriyor',
+  // P2xxx
+  P2096:'Katalizör sonrası yakıt trimi çok fakir (bank 1)', P2097:'Katalizör sonrası yakıt trimi çok zengin (bank 1)',
+  P2100:'Gaz kelebeği motoru devresi açık', P2101:'Gaz kelebeği motoru aralık/performans', P2102:'Gaz kelebeği motoru devresi düşük', P2103:'Gaz kelebeği motoru devresi yüksek',
+  P2106:'Gaz kelebeği sistemi, güç sınırlandı', P2108:'Gaz kelebeği kontrol modülü performansı', P2110:'Gaz kelebeği sistemi, devir sınırlandı',
+  P2111:'Gaz kelebeği açık takılı', P2112:'Gaz kelebeği kapalı takılı', P2118:'Gaz kelebeği motoru akımı aralık/performans', P2119:'Gaz kelebeği gövdesi aralık/performans',
+  P2122:'Gaz pedalı sensörü D düşük giriş', P2123:'Gaz pedalı sensörü D yüksek giriş', P2127:'Gaz pedalı sensörü E düşük giriş', P2128:'Gaz pedalı sensörü E yüksek giriş',
+  P2135:'Gaz kelebeği sensörü A-B voltaj uyumsuzluğu', P2138:'Gaz pedalı sensörü D-E voltaj uyumsuzluğu', P2176:'Gaz kelebeği rölanti konumu öğrenilmemiş',
+  P2177:'Rölanti dışında karışım çok fakir (bank 1)', P2178:'Rölanti dışında karışım çok zengin (bank 1)', P2187:'Rölantide karışım çok fakir (bank 1)', P2188:'Rölantide karışım çok zengin (bank 1)',
+  P2195:'O2 sensörü fakirde takılı (B1S1)', P2196:'O2 sensörü zenginde takılı (B1S1)', P2270:'O2 sensörü fakirde takılı (B1S2)', P2271:'O2 sensörü zenginde takılı (B1S2)',
+  P2300:'Ateşleme bobini A kontrol devresi düşük', P2301:'Ateşleme bobini A kontrol devresi yüksek', P2303:'Ateşleme bobini B kontrol devresi düşük', P2304:'Ateşleme bobini B kontrol devresi yüksek',
+  P2306:'Ateşleme bobini C kontrol devresi düşük', P2307:'Ateşleme bobini C kontrol devresi yüksek', P2309:'Ateşleme bobini D kontrol devresi düşük', P2310:'Ateşleme bobini D kontrol devresi yüksek',
+  P2A00:'O2 sensörü devresi aralık/performans (B1S1)',
+  // Ağ
+  U0001:'Yüksek hızlı CAN iletişim hattı', U0073:'Kontrol modülü iletişim hattı A kapalı', U0100:'Motor ECU ile iletişim kaybı', U0101:'Şanzıman ECU ile iletişim kaybı',
+  U0121:'ABS modülü ile iletişim kaybı', U0140:'Gövde kontrol modülü (UCH) ile iletişim kaybı', U0151:'Hava yastığı modülü ile iletişim kaybı',
+  U0155:'Gösterge paneli ile iletişim kaybı', U0164:'Klima kontrol modülü ile iletişim kaybı', U0167:'İmmobilizer ile iletişim kaybı',
+  U0401:'Motor ECU\'dan geçersiz veri', U0415:'ABS modülünden geçersiz veri'
 };
 const SYS = {P:'Motor/şanzıman', C:'Şasi', B:'Gövde', U:'Ağ/iletişim'};
 const RANGE_P = {'0':'Yakıt ve hava ölçümü','1':'Yakıt ve hava ölçümü','2':'Enjektör devresi','3':'Ateşleme sistemi veya tekleme','4':'Emisyon kontrolü','5':'Hız ve rölanti kontrolü','6':'ECU ve çıkış devreleri','7':'Şanzıman','8':'Şanzıman','9':'Şanzıman','A':'Hibrit sistem','B':'Hibrit sistem','C':'Hibrit sistem'};
@@ -1258,6 +1512,7 @@ async function readDtc(silent){
     } else S.mon = null;
     const r3 = await cmd('03', 6000); S.dtcStored = bad(r3) ? [] : parseDtc(r3, '43');
     const r7 = await cmd('07', 6000); S.dtcPending = bad(r7) ? [] : parseDtc(r7, '47');
+    const rA = await cmd('0A', 6000); S.dtcPerm = bad(rA) || !/4A/.test(rA.toUpperCase().replace(/\s/g,'')) ? null : parseDtc(rA, '4A');
     if (S.supported.has('31')) await readPid('31', false);
     S.ff = await readFreeze();
     S.lastRead = new Date();
@@ -1268,13 +1523,22 @@ async function readFreeze(){
   const b = pidBytes(await cmd('020200'), 2, '02');
   if (!b || b.length < 3 || (b[1] === 0 && b[2] === 0)) return {code:null, rows:[]};
   const code = decodeDtc(hex2(b[1]) + hex2(b[2]));
-  const sup = new Set(), m = pidBytes(await cmd('020000'), 2, '00');
-  if (m && m.length >= 5) addMask(sup, m.slice(1), 0);
-  const list = FF_PIDS.filter(p => sup.size ? sup.has(p) : S.supported.has(p));
+  const sup = new Set();
+  for (let base = 0; base <= 0xE0; base += 0x20){
+    const p = hex2(base); if (base && !sup.has(p)) break;
+    const m = pidBytes(await cmd('02'+p+'00'), 2, p);
+    if (!m || m.length < 5) break;
+    addMask(sup, m.slice(1), base);
+  }
+  const list = Object.keys(PIDS).concat(Object.keys(TXT)).filter(p => sup.size ? sup.has(p) : S.supported.has(p)).sort();
   const rows = [];
   for (const p of list){
-    const d = PIDS[p], v = pidBytes(await cmd('02'+p+'00'), 2, p);
-    if (v && v.length >= 1 + d.n) rows.push([d.l, d.f(v[1], v[2]), d.u, d.d]);
+    const v = pidBytes(await cmd('02'+p+'00'), 2, p); if (!v || v.length < 2) continue;
+    const b = v.slice(1);
+    if (TXT[p]){ rows.push([TXT[p].l, TXT[p].f(...b), '', null]); continue; }
+    const d = PIDS[p], o = {}; decodePid(p, b, o);
+    rows.push([d.l, o[d.k], d.u, d.d]);
+    for (const x of d.x || []) if (o[x.k] != null) rows.push([x.l, o[x.k], x.u, x.d]);
   }
   return {code, rows};
 }
@@ -1292,13 +1556,15 @@ function renderDtc(){
   $('#sumTime').textContent = fmtDT(S.lastRead);
   $('#listStored').innerHTML = read ? rowsFor(S.dtcStored) : nr(4);
   $('#listPending').innerHTML = read ? rowsFor(S.dtcPending) : nr(4);
+  $('#sumPerm').textContent = read ? (S.dtcPerm ? S.dtcPerm.length : 'yok') : '–';
+  $('#listPerm').innerHTML = !read ? nr(4) : S.dtcPerm ? rowsFor(S.dtcPerm) : `<tr><td colspan="4" class="muted">ECU kalıcı kod desteklemiyor</td></tr>`;
   $('#listReady').innerHTML = mon && mon.items.length
     ? mon.items.map(([n,ok]) => `<tr><td>${n}</td><td><span class="pill ${ok?'ok':'warn'}">${ok?'Tamamlandı':'Tamamlanmadı'}</span></td></tr>`).join('')
     : read ? `<tr><td colspan="2" class="muted">ECU hazırlık bilgisi vermedi</td></tr>` : nr(2);
   const ff = S.ff;
   $('#ffCode').textContent = ff?.code || '–';
   $('#ffRows').innerHTML = !read ? nr(3) : ff && ff.rows.length
-    ? ff.rows.map(([l,v,u,d]) => `<tr><td>${l}</td><td class="r">${NF(v,d)}</td><td>${u}</td></tr>`).join('')
+    ? ff.rows.map(([l,v,u,d]) => `<tr><td>${l}</td><td class="r">${typeof v === 'string' ? v : NF(v,d)}</td><td>${u}</td></tr>`).join('')
     : `<tr><td colspan="3" class="muted">Kayıtlı freeze frame yok</td></tr>`;
   renderInspection();
 }
@@ -1309,6 +1575,7 @@ function renderInspection(){
   rows.push(['Arıza lambası', mon ? (mon.mil ? 'Yanıyor' : 'Sönük') : 'Bilinmiyor', mon ? (mon.mil ? 'crit' : 'ok') : 'warn']);
   rows.push(['Kayıtlı arıza kodu', String(S.dtcStored.length), S.dtcStored.length ? 'crit' : 'ok']);
   rows.push(['Bekleyen arıza kodu', String(S.dtcPending.length), S.dtcPending.length ? 'warn' : 'ok']);
+  if (S.dtcPerm) rows.push(['Kalıcı arıza kodu', String(S.dtcPerm.length), S.dtcPerm.length ? 'warn' : 'ok']);
   if (mon && mon.items.length){ const inc = mon.items.filter(i => !i[1]).length; rows.push(['Hazırlık testleri', inc ? `${inc} test tamamlanmadı` : 'Hepsi tamam', inc ? 'warn' : 'ok']); }
   const dc = S.values.distClr;
   if (dc != null) rows.push(['Kod silmeden beri yol', `${NF(dc)} km`, dc < 100 ? 'warn' : 'ok']);
@@ -1329,6 +1596,91 @@ $('#btnClearYes').addEventListener('click', async () => {
   } catch (e) { $('#dtcErr').textContent = e.message; $('#dtcErr').hidden = false; }
   await readDtc();
 });
+
+/* ---------- Mode 06: izleme testi sonuçları (ISO 15765-4) ---------- */
+// Birim ve ölçek (SAE J1979 UASID): [çarpan, birim, ofset]; 0x80 üstü aynı birimin işaretli hali
+const UAS = {
+  0x01:[1,''],0x02:[0.1,''],0x03:[0.01,''],0x04:[0.001,''],0x05:[0.0000305,''],0x06:[0.000305,''],
+  0x07:[0.25,'dev/dk'],0x08:[0.01,'km/sa'],0x09:[1,'km/sa'],0x0A:[0.000122,'V'],0x0B:[0.001,'V'],0x0C:[0.01,'V'],
+  0x0D:[0.00390625,'mA'],0x0E:[0.001,'A'],0x0F:[0.01,'A'],0x10:[1,'ms'],0x11:[100,'ms'],0x12:[1,'sn'],
+  0x13:[1,'mΩ'],0x14:[1,'Ω'],0x15:[1,'kΩ'],0x16:[0.1,'°C',-40],0x17:[0.01,'kPa'],0x18:[0.0117,'kPa'],0x19:[0.079,'kPa'],
+  0x1A:[1,'kPa'],0x1B:[10,'kPa'],0x1C:[0.01,'°'],0x1D:[0.5,'°'],0x1E:[0.0000305,'λ'],0x1F:[0.05,'hava/yakıt'],
+  0x20:[0.0039062,'oran'],0x21:[1,'mHz'],0x22:[1,'Hz'],0x23:[1,'kHz'],0x24:[1,'adet'],0x25:[1,'km'],
+  0x26:[0.1,'mV/ms'],0x27:[0.01,'g/s'],0x28:[1,'g/s'],0x29:[0.25,'Pa/s'],0x2A:[0.001,'kg/sa'],0x2B:[1,'geçiş'],
+  0x2C:[0.01,'g/silindir'],0x2D:[0.01,'mg/strok'],0x2E:[1,'doğru/yanlış'],0x2F:[0.01,'%'],0x30:[0.001526,'%'],
+  0x31:[0.001,'L'],0x32:[0.0000305,'inç'],0x33:[0.00024414,'oran'],0x34:[1,'dk'],0x35:[10,'ms'],0x36:[0.01,'g'],
+  0x37:[0.1,'g'],0x38:[1,'g'],0x39:[0.01,'%',-327.68],0x3A:[0.001,'g'],0x3B:[0.0001,'g'],0x3C:[0.1,'µs'],
+  0x3D:[0.01,'mA'],0x3F:[0.01,'L'],0x40:[1,'ppm'],0x41:[0.01,'µA'],
+  0x96:[0.1,'°C'],0xFC:[0.01,'kPa'],0xFD:[0.001,'kPa'],0xFE:[0.25,'Pa'],
+};
+function uas(id, raw){
+  const signed = id >= 0x80, s = UAS[id] || (signed ? UAS[id - 0x80] : null);
+  const v = signed && raw > 32767 ? raw - 65536 : raw;
+  if (!s) return {v:raw, u:`ham (${hex2(id)})`, d:0};
+  const val = v * s[0] + ((UAS[id] && UAS[id][2]) || 0);
+  return {v:val, u:s[1], d: s[0] >= 1 ? 0 : Math.min(4, Math.ceil(-Math.log10(s[0])))};
+}
+const MID_NAMES = mid => {
+  const n = parseInt(mid,16);
+  if (n >= 0x01 && n <= 0x08) return `O2 sensörü ${O2POS[n-1]}`;
+  if (n >= 0x21 && n <= 0x24) return `Katalizör bank ${n-0x20}`;
+  if (n >= 0x31 && n <= 0x34) return `EGR / VVT bank ${n-0x30}`;
+  if (n >= 0x35 && n <= 0x38) return `VVT bank ${n-0x34}`;
+  if (n === 0x39) return 'EVAP (kapak açık / 0,150")'; if (n === 0x3A) return 'EVAP (0,090")'; if (n === 0x3B) return 'EVAP (0,040")'; if (n === 0x3C) return 'EVAP (0,020")'; if (n === 0x3D) return 'EVAP boşaltma akışı';
+  if (n >= 0x41 && n <= 0x48) return `O2 ısıtıcısı ${O2POS[n-0x41]}`;
+  if (n >= 0x61 && n <= 0x64) return `Isıtmalı katalizör bank ${n-0x60}`;
+  if (n >= 0x71 && n <= 0x74) return `İkincil hava ${n-0x70}`;
+  if (n >= 0x81 && n <= 0x84) return `Yakıt sistemi bank ${n-0x80}`;
+  if (n === 0xA1) return 'Tekleme (genel)';
+  if (n >= 0xA2 && n <= 0xAD) return `Tekleme silindir ${n-0xA1}`;
+  return `Test grubu ${mid}`;
+};
+const O2_TID = {0x01:'Zenginden fakire eşik voltajı',0x02:'Fakirden zengine eşik voltajı',0x03:'Geçiş süresi için düşük voltaj',0x04:'Geçiş süresi için yüksek voltaj',
+  0x05:'Zenginden fakire geçiş süresi',0x06:'Fakirden zengine geçiş süresi',0x07:'En düşük voltaj',0x08:'En yüksek voltaj',0x09:'Geçişler arası süre',0x0A:'Sensör periyodu'};
+const TID_NAME = (mid, tid) => {
+  const n = parseInt(mid,16);
+  if (n <= 0x08 && O2_TID[tid]) return O2_TID[tid];
+  if (n >= 0xA1 && n <= 0xAD && tid === 0x0B) return 'Tekleme sayısı (son 10 sürüş ort.)';
+  if (n >= 0xA1 && n <= 0xAD && tid === 0x0C) return 'Tekleme sayısı (son/bu sürüş)';
+  return tid >= 0x80 ? `Üretici testi ${hex2(tid)}` : `Test ${hex2(tid)}`;
+};
+async function readMode6(){
+  if (!S.isCAN){ S.m6 = {err:'Bu protokolde Mode 06 desteklenmiyor (sadece CAN)'}; renderMode6(); return; }
+  $('#btnM6').disabled = true; $('#m6State').className = 'pill warn'; $('#m6State').textContent = 'Okunuyor';
+  const sup = new Set(), rows = [];
+  try {
+    for (let base = 0; base <= 0xE0; base += 0x20){
+      const p = hex2(base); if (base && !sup.has(p)) break;
+      const r = await cmd('06'+p, 4000), h = frames(r, '46'+p) || lines(r).find(l => l.startsWith('46'+p));
+      if (!h || h.length < 12) break;
+      const b = []; for (let i=4;i<12;i+=2) b.push(parseInt(h.substr(i,2),16)); addMask(sup, b, base);
+    }
+    for (const mid of [...sup].filter(m => !['00','20','40','60','80','A0','C0','E0'].includes(m)).sort()){
+      const r = await cmd('06'+mid, 4000); if (bad(r)) continue;
+      const h = frames(r, '46'+mid) || lines(r).find(l => l.startsWith('46'+mid)); if (!h) continue;
+      const body = h.slice(2);
+      for (let i=0;i+18<=body.length;i+=18){
+        const rec = body.substr(i,18); if (rec.slice(0,2) !== mid) break;
+        const tid = parseInt(rec.substr(2,2),16), id = parseInt(rec.substr(4,2),16);
+        const val = uas(id, parseInt(rec.substr(6,4),16)), mn = uas(id, parseInt(rec.substr(10,4),16)), mx = uas(id, parseInt(rec.substr(14,4),16));
+        rows.push({name:`${MID_NAMES(mid)} · ${TID_NAME(mid, tid)}`, val, mn, mx, ok: val.v >= mn.v && val.v <= mx.v});
+      }
+    }
+    S.m6 = {rows, t:new Date()};
+  } catch (e) { S.m6 = {err:'Okuma başarısız: ' + e.message}; }
+  finally { $('#btnM6').disabled = !S.connected; renderMode6(); }
+}
+function renderMode6(){
+  const m = S.m6, st = $('#m6State');
+  if (!m){ st.className = 'pill'; st.textContent = 'Okunmadı'; $('#m6Rows').innerHTML = `<tr><td colspan="6" class="muted">Testleri oku</td></tr>`; return; }
+  if (m.err){ st.className = 'pill warn'; st.textContent = 'Okunamadı'; $('#m6Rows').innerHTML = `<tr><td colspan="6" class="muted">${m.err}</td></tr>`; return; }
+  const fail = m.rows.filter(r => !r.ok).length;
+  st.className = 'pill ' + (!m.rows.length ? '' : fail ? 'crit' : 'ok');
+  st.textContent = !m.rows.length ? 'Sonuç yok' : fail ? `${fail} test limit dışı` : `${m.rows.length} test, hepsi limitte`;
+  $('#m6Rows').innerHTML = m.rows.length ? m.rows.map(r => `<tr><td>${r.name}</td><td class="r">${NF(r.val.v, r.val.d)}</td><td class="r">${NF(r.mn.v, r.mn.d)}</td><td class="r">${NF(r.mx.v, r.mx.d)}</td><td>${r.val.u}</td><td><span class="pill ${r.ok?'ok':'crit'}">${r.ok?'Geçti':'Kaldı'}</span></td></tr>`).join('')
+    : `<tr><td colspan="6" class="muted">ECU test sonucu bildirmedi</td></tr>`;
+}
+$('#btnM6').addEventListener('click', readMode6);
 
 /* ---------- akü ve şarj testi ---------- */
 async function measureV(n){
@@ -1463,7 +1815,16 @@ function renderInfo(){
   $('#ciName').textContent = i.name || '–'; $('#ciSvc').textContent = i.svc || '–'; $('#ciVer').textContent = i.ver || '–';
   $('#ciProto').textContent = i.proto || '–'; $('#ciProtoN').textContent = i.protoN || '–';
   $('#ciPids').textContent = i.pids != null ? i.pids : '–';
-  $('#ciVin').textContent = i.time ? (i.vin || 'ECU bildirmiyor') : '–';
+  const nb = v => i.time ? (v || 'ECU bildirmiyor') : '–';
+  $('#ciVin').textContent = nb(i.vin);
+  $('#ciEcus').textContent = nb(i.ecus && i.ecus.join(', '));
+  $('#ciEcuName').textContent = nb(i.ecuName);
+  $('#ciCalid').textContent = nb(i.calid);
+  $('#ciCvn').textContent = nb(i.cvn);
+  $('#ciObd').textContent = nb(S.txt['1C']);
+  $('#ciFuelType').textContent = nb(S.txt['51']);
+  $('#ciO2').textContent = nb(S.txt['13'] || S.txt['1D']);
+  $('#ciSecAir').textContent = nb(S.txt['12']);
   $('#ciTime').textContent = fmtDT(i.time);
 }
 
@@ -1519,7 +1880,7 @@ $('#btnCopyLog').addEventListener('click', async () => {
   catch { const r = document.createRange(); r.selectNodeContents(term); const s = getSelection(); s.removeAllRanges(); s.addRange(r); }
 });
 
-buildGauge(); recalcCal(); renderDtc(); renderInfo(); renderTrip(); renderTrips(); renderMaint(); renderBattery(); renderLaunches(); renderFuel(); setControls();
+buildGauge(); recalcCal(); renderDtc(); renderMode6(); renderInfo(); renderTrip(); renderTrips(); renderMaint(); renderBattery(); renderLaunches(); renderFuel(); setControls();
 loadFuel();
 log('sys', hasBt ? 'hazır: Bağlan ile FD10\'u seç' : 'bu tarayıcıda Web Bluetooth yok, demo modu açılıyor');
 if (!hasBt) start('demo');
