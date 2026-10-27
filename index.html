@@ -5,198 +5,446 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Clio OBD Paneli</title>
 <meta name="claude:viewport-fit-sides" content="cover">
-<meta name="theme-color" content="#101317">
+<meta name="theme-color" content="#020617" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#F8FAFC" media="(prefers-color-scheme: light)">
+<meta name="description" content="Renault Clio için ELM327 BLE OBD-II paneli: canlı veri, arıza kodları, yolculuk ve bakım takibi.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Semi+Condensed:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@500;600&family=Fira+Sans:wght@400;500;600;700&display=swap">
 <style>
-/* Layout: kokpit gibi tek sütun — üstte durum çubuğu ve sekmeler; her sekme kendi kartlarını alt alta dizer, geniş ekranda iki sütuna açılır */
+/* Clio OBD tasarım sistemi — kaynak: design-system/clio-obd/MASTER.md
+   Katmanlar: primitive (ham değerler) → semantic (anlam) → component (bileşen). Bileşenlerde ham hex yok. */
+
+/* === PRIMITIVES === */
 :root{
-  --bg:#101317; --surface:#181c21; --surface-2:#1f242a; --line:#2a3037;
-  --fg:#e7eaed; --muted:#8b949d; --accent:#f0a23a; --accent-ink:#1a1206;
-  --ok:#4fc38c; --warn:#e9b53b; --crit:#ef5b50;
-  --hud-bg:#000000; --hud-fg:#f4f7f5; --hud-dim:#7d8a83;
-  --f-display:"Saira Semi Condensed","Arial Narrow",system-ui,sans-serif;
-  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
-  --f-mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+  --slate-950:#020617; --slate-900:#0F172A; --slate-850:#1B2336; --slate-800:#1E293B; --slate-750:#273449;
+  --slate-700:#334155; --slate-600:#475569; --slate-500:#64748B; --slate-400:#94A3B8; --slate-300:#CBD5E1;
+  --slate-200:#E2E8F0; --slate-100:#F1F5F9; --slate-50:#F8FAFC; --white:#FFFFFF; --black:#000000;
+  --green-500:#22C55E; --green-600:#16A34A; --green-700:#15803D;
+  --amber-500:#F59E0B; --amber-700:#B45309;
+  --red-500:#EF4444; --red-600:#DC2626;
+
+  --space-1:4px; --space-2:8px; --space-3:12px; --space-4:16px; --space-6:24px; --space-8:32px;
+  --radius-sm:8px; --radius-md:12px; --radius-lg:16px; --radius-full:999px;
+  --fs-12:12px; --fs-13:13px; --fs-14:14px; --fs-16:16px; --fs-18:18px; --fs-22:22px; --fs-28:28px; --fs-64:64px;
+  --dur-fast:150ms; --dur-base:200ms; --ease-out:cubic-bezier(.2,.8,.2,1);
+  --font-sans:"Fira Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --font-num:"Fira Sans",system-ui,sans-serif;
+  --font-mono:"Fira Code",ui-monospace,"SFMono-Regular",Menlo,monospace;
+  --icon-sm:18px; --icon-md:20px; --icon-lg:24px; --icon-xl:30px;
+  --z-nav:20; --z-toast:55; --z-hud:50; --z-alert:60;
+}
+
+/* === SEMANTIC (koyu, varsayılan) === */
+:root{
+  --color-bg:var(--slate-950);
+  --color-surface:var(--slate-900);
+  --color-surface-2:var(--slate-850);
+  --color-divider:var(--slate-750);
+  --color-border:var(--slate-600);
+  --color-fg:var(--slate-50);
+  --color-fg-muted:var(--slate-400);
+  --color-accent:var(--green-500);
+  --color-on-accent:var(--slate-900);
+  --color-accent-strong:var(--green-500);
+  --color-ok:var(--green-500);
+  --color-warn:var(--amber-500);
+  --color-crit:var(--red-500);
+  --color-on-status:var(--slate-950);
+  --color-ring:var(--green-500);
+  --color-chrome:color-mix(in srgb,var(--slate-950) 82%,transparent);
+  --shadow-float:0 12px 32px rgb(0 0 0 / .45);
   color-scheme:dark;
 }
 @media (prefers-color-scheme: light){
   :root:not([data-theme="dark"]){
-    --bg:#eef0f2; --surface:#ffffff; --surface-2:#f5f6f7; --line:#d8dce0;
-    --fg:#14181c; --muted:#5d6670; --accent:#b4650a; --accent-ink:#ffffff;
-    --ok:#1f8a58; --warn:#a57600; --crit:#c8372d; color-scheme:light;
+    --color-bg:var(--slate-50); --color-surface:var(--white); --color-surface-2:var(--slate-100);
+    --color-divider:var(--slate-200); --color-border:var(--slate-300);
+    --color-fg:var(--slate-900); --color-fg-muted:var(--slate-600);
+    --color-ok:var(--green-700); --color-warn:var(--amber-700); --color-crit:var(--red-600);
+    --color-on-status:var(--white); --color-ring:var(--green-700); --color-accent-strong:var(--green-700);
+    --color-chrome:color-mix(in srgb,var(--white) 86%,transparent);
+    --shadow-float:0 12px 32px rgb(15 23 42 / .18);
+    color-scheme:light;
   }
 }
 :root[data-theme="light"]{
-  --bg:#eef0f2; --surface:#ffffff; --surface-2:#f5f6f7; --line:#d8dce0;
-  --fg:#14181c; --muted:#5d6670; --accent:#b4650a; --accent-ink:#ffffff;
-  --ok:#1f8a58; --warn:#a57600; --crit:#c8372d; color-scheme:light;
+  --color-bg:var(--slate-50); --color-surface:var(--white); --color-surface-2:var(--slate-100);
+  --color-divider:var(--slate-200); --color-border:var(--slate-300);
+  --color-fg:var(--slate-900); --color-fg-muted:var(--slate-600);
+  --color-ok:var(--green-700); --color-warn:var(--amber-700); --color-crit:var(--red-600);
+  --color-on-status:var(--white); --color-ring:var(--green-700); --color-accent-strong:var(--green-700);
+  --color-chrome:color-mix(in srgb,var(--white) 86%,transparent);
+  --shadow-float:0 12px 32px rgb(15 23 42 / .18);
+  color-scheme:light;
 }
+
+/* === COMPONENT === */
+:root{
+  /* kısa adlar: betik ve grafik çizimi bunları okur */
+  --bg:var(--color-bg); --surface:var(--color-surface); --surface-2:var(--color-surface-2); --line:var(--color-divider);
+  --fg:var(--color-fg); --muted:var(--color-fg-muted); --accent:var(--color-accent); --accent-ink:var(--color-on-accent);
+  --ok:var(--color-ok); --warn:var(--color-warn); --crit:var(--color-crit);
+  --f-body:var(--font-sans); --f-display:var(--font-num); --f-mono:var(--font-num);
+
+  --card-bg:var(--color-surface); --card-border:var(--color-divider); --card-radius:var(--radius-lg); --card-pad:var(--space-4);
+  --btn-h:44px; --btn-h-sm:40px; --btn-radius:var(--radius-md);
+  --btn-bg:var(--color-surface-2); --btn-fg:var(--color-fg); --btn-border:var(--color-border);
+  --btn-primary-bg:var(--color-accent); --btn-primary-fg:var(--color-on-accent);
+  --input-bg:var(--color-surface-2); --input-border:var(--color-border); --input-h:44px;
+  --tile-bg:var(--color-surface-2); --tile-radius:var(--radius-md);
+  --pill-h:26px;
+  --nav-h:64px;
+  --hud-bg:var(--black); --hud-fg:var(--slate-50); --hud-dim:var(--slate-400);
+;font-variant-numeric:tabular-nums}
+
+/* === TABAN === */
 :root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
-html,body{background:var(--bg)}
-body{margin:0;color:var(--fg);font:15px/1.45 var(--f-body);-webkit-text-size-adjust:100%}
+html,body{background:var(--color-bg)}
+body{margin:0;color:var(--color-fg);font:400 var(--fs-16)/1.5 var(--font-sans);-webkit-text-size-adjust:100%;-webkit-font-smoothing:antialiased}
 button,input,select{font:inherit;color:inherit}
-.wrap{max-width:1040px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
-
-body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
-.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
-.top .wrap{display:flex;align-items:center;gap:12px;padding-block:10px 0;flex-wrap:wrap}
-.brand{font:700 20px/1 var(--f-display);letter-spacing:.02em;margin-right:auto}
-.status{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);min-width:0}
-.dot{width:9px;height:9px;border-radius:50%;background:var(--muted);flex:none}
-.dot.on{background:var(--ok);box-shadow:0 0 0 3px color-mix(in srgb,var(--ok) 25%,transparent)}
-.dot.busy{background:var(--warn)}
-.dot.err{background:var(--crit)}
-.btn{border:1px solid var(--line);background:var(--surface-2);border-radius:8px;padding:8px 14px;cursor:pointer;font-weight:500;white-space:nowrap}
-.btn:hover{border-color:var(--muted)}
-.btn:disabled{opacity:.45;cursor:not-allowed}
-.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
-.btn.danger{border-color:color-mix(in srgb,var(--crit) 60%,var(--line));color:var(--crit)}
-.btn.sm{padding:5px 10px;font-size:13px}
-.btn:focus-visible,.tab:focus-visible,.tile:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-
-nav.tabs{display:flex;gap:2px;width:100%;overflow-x:auto;scrollbar-width:none}
-.tab{flex:1;border:0;background:none;padding:10px 6px;border-bottom:2px solid transparent;color:var(--muted);font-weight:600;cursor:pointer;white-space:nowrap;font-size:14px}
-.tab[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--accent)}
-
-main .wrap{padding-block:16px 40px}
-.page{display:grid;gap:16px}
-.cols{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr));align-items:start}
-.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;min-width:0}
-.card-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
-h2{font:600 13px/1.2 var(--f-body);text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0}
-.card > h2{margin-bottom:12px}
-.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-.muted{color:var(--muted)}
-.mono{font-family:var(--f-mono)}
+button{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.wrap{max-width:1040px;margin:0 auto;padding-left:max(var(--space-4),env(safe-area-inset-left,0px));padding-right:max(var(--space-4),env(safe-area-inset-right,0px))}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+:where(button,a,input,select,summary,[tabindex]):focus-visible{outline:2px solid var(--color-ring);outline-offset:2px;border-radius:var(--radius-sm)}
+.ico{width:var(--icon-md);height:var(--icon-md);flex:none;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.muted{color:var(--color-fg-muted)}
+.mono{font-family:var(--font-mono)}
 .num{font-variant-numeric:tabular-nums}
-.note{margin:0;font-size:13px;color:var(--muted)}
-.err{color:var(--crit);font-size:14px;margin:0}
+.note{margin:0;font-size:var(--fs-14);line-height:1.5;color:var(--color-fg-muted)}
+.err{color:var(--color-crit);font-size:var(--fs-14);margin:0}
+.row{display:flex;gap:var(--space-2);align-items:center;flex-wrap:wrap}
 
-.empty{display:grid;gap:12px;justify-items:start}
-.empty p{margin:0;max-width:60ch}
+/* === ÜST ÇUBUK === */
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--color-bg)}
+/* backdrop-filter burada kullanılmaz: sabit konumlu alt menü bu çubuğun içinde, filtre onun konum referansını bozar */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:var(--z-nav);background:var(--color-bg);border-bottom:1px solid var(--color-divider)}
+.top .wrap{display:flex;align-items:center;gap:var(--space-3);padding-block:var(--space-2);flex-wrap:wrap;min-height:60px}
+.brand{display:flex;align-items:center;gap:var(--space-2);font:700 var(--fs-18)/1 var(--font-sans);letter-spacing:-.01em;margin-right:auto;white-space:nowrap}
+.brand svg{width:26px;height:26px}
+.status{display:inline-flex;align-items:center;gap:var(--space-2);font-size:var(--fs-13);color:var(--color-fg-muted);min-width:0;padding:6px 10px;border:1px solid var(--color-divider);border-radius:var(--radius-full);background:var(--color-surface)}
+#statusText{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--color-fg-muted);flex:none}
+.dot.on{background:var(--color-ok);box-shadow:0 0 0 3px color-mix(in srgb,var(--color-ok) 25%,transparent)}
+.dot.busy{background:var(--color-warn);animation:blink 1s steps(2) infinite}
+.dot.err{background:var(--color-crit)}
+@keyframes blink{50%{opacity:.35}}
 
-.cluster{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:16px}
+/* === DÜĞMELER === */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:var(--space-2);min-height:var(--btn-h);padding:0 var(--space-4);border:1px solid var(--btn-border);background:var(--btn-bg);color:var(--btn-fg);border-radius:var(--btn-radius);font-weight:600;font-size:var(--fs-14);cursor:pointer;white-space:nowrap;transition:background-color var(--dur-fast),border-color var(--dur-fast),transform var(--dur-base) var(--ease-out)}
+.btn:hover{border-color:var(--color-fg-muted)}
+.btn:active:not(:disabled){transform:scale(.97)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.primary{--btn-bg:var(--btn-primary-bg);--btn-fg:var(--btn-primary-fg);--btn-border:var(--btn-primary-bg)}
+.btn.primary:hover{--btn-bg:color-mix(in srgb,var(--btn-primary-bg) 88%,var(--white))}
+.btn.danger{--btn-bg:transparent;--btn-fg:var(--color-crit);--btn-border:color-mix(in srgb,var(--color-crit) 55%,transparent)}
+.btn.ghost{--btn-bg:transparent;--btn-border:transparent}
+.btn.sm{min-height:var(--btn-h-sm);padding:0 var(--space-3);font-size:var(--fs-13)}
+.btn .ico{width:var(--icon-sm);height:var(--icon-sm)}
+
+/* === SEKMELER / ALT MENÜ === */
+nav.tabs{display:flex;gap:var(--space-1);width:100%;overflow-x:auto;scrollbar-width:none}
+.tab{position:relative;flex:1;display:inline-flex;align-items:center;justify-content:center;gap:var(--space-2);min-height:48px;border:0;background:none;padding:0 var(--space-2);border-bottom:2px solid transparent;color:var(--color-fg-muted);font-weight:600;font-size:var(--fs-14);cursor:pointer;white-space:nowrap;transition:color var(--dur-fast)}
+.tab svg{width:var(--icon-md);height:var(--icon-md)}
+.tab[aria-selected="true"]{color:var(--color-fg);border-bottom-color:var(--color-accent-strong)}
+.badge{position:absolute;top:6px;right:6px;min-width:var(--icon-sm);height:var(--icon-sm);padding:0 5px;border-radius:9px;background:var(--color-crit);color:var(--white);font:700 11px/18px var(--font-sans);text-align:center}
+
+/* === SAYFA DÜZENİ === */
+main .wrap{padding-block:var(--space-4) var(--space-8)}
+.page{display:grid;gap:var(--space-3)}
+.cols{display:grid;gap:var(--space-3);grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr));align-items:start}
+.side{display:grid;gap:var(--space-3);align-content:start}
+.card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:var(--card-radius);padding:var(--card-pad);min-width:0}
+.card-head{display:flex;justify-content:space-between;align-items:center;gap:var(--space-3);flex-wrap:wrap;margin-bottom:var(--space-3)}
+h2{display:flex;align-items:center;gap:var(--space-2);font:600 var(--fs-13)/1.2 var(--font-sans);text-transform:uppercase;letter-spacing:.06em;color:var(--color-fg-muted);margin:0}
+.card > h2{margin-bottom:var(--space-3)}
+
+/* === BOŞ DURUM === */
+.empty{display:grid;gap:var(--space-4);justify-items:start;padding:var(--space-6) var(--space-4)}
+.empty .hero-ico{width:56px;height:56px;border-radius:var(--radius-lg);display:grid;place-items:center;background:color-mix(in srgb,var(--color-accent) 14%,transparent);color:var(--color-accent-strong)}
+.empty .hero-ico svg{width:var(--icon-xl);height:var(--icon-xl)}
+.empty h1{margin:0;font:700 var(--fs-22)/1.2 var(--font-sans);letter-spacing:-.01em}
+.empty p{margin:0;max-width:60ch;color:var(--color-fg-muted)}
+.steps-list{margin:0;padding:0;list-style:none;display:grid;gap:var(--space-3);counter-reset:s}
+.steps-list li{display:flex;gap:var(--space-3);align-items:flex-start;counter-increment:s}
+.steps-list li::before{content:counter(s);flex:none;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font:600 var(--fs-13) var(--font-mono);background:var(--color-surface-2);border:1px solid var(--color-divider)}
+
+/* === GÖSTERGE (hero) === */
+.cluster{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:var(--space-3)}
 @media (max-width:680px){.cluster{grid-template-columns:1fr}}
-.gauge{position:relative}
-.gauge .btn{position:absolute;top:12px;right:12px}
-.gauge svg{width:100%;max-width:420px;display:block;margin:0 auto}
-.g-track{fill:none;stroke:var(--surface-2);stroke-width:14}
-.g-red{fill:none;stroke:color-mix(in srgb,var(--crit) 55%,transparent);stroke-width:14}
-.g-val{fill:none;stroke:var(--accent);stroke-width:14;transition:stroke-dasharray .25s linear}
-.g-val.red{stroke:var(--crit)}
-.g-tick{stroke:var(--muted);stroke-width:1.5}
-.g-lbl{fill:var(--muted);font:600 11px var(--f-display);text-anchor:middle;dominant-baseline:middle}
-.g-speed{fill:var(--fg);font:700 54px var(--f-display);text-anchor:middle;font-variant-numeric:tabular-nums}
-.g-unit{fill:var(--muted);font:500 12px var(--f-body);text-anchor:middle}
-.g-rpm{fill:var(--fg);font:600 17px var(--f-display);text-anchor:middle;font-variant-numeric:tabular-nums}
-.side{display:grid;gap:16px;align-content:start}
-.big{font:700 40px/1 var(--f-display);font-variant-numeric:tabular-nums}
-.big small{font:500 14px var(--f-body);color:var(--muted);margin-left:4px}
-.bar{position:relative;height:12px;border-radius:6px;background:var(--surface-2);margin-top:12px;overflow:hidden}
-.bar .band{position:absolute;top:0;bottom:0;background:color-mix(in srgb,var(--ok) 22%,transparent)}
-.bar .fill{position:absolute;left:0;top:0;bottom:0;background:var(--accent);transition:width .3s}
-.scale{display:flex;justify-content:space-between;font:12px var(--f-display);color:var(--muted);margin-top:6px}
-.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 9px;border-radius:999px;border:1px solid var(--line);background:var(--surface-2);white-space:nowrap}
-.pill.ok{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 45%,var(--line))}
-.pill.warn{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 45%,var(--line))}
-.pill.crit{color:var(--crit);border-color:color-mix(in srgb,var(--crit) 45%,var(--line))}
-.kv{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:14px;margin:0}
-.kv dt{color:var(--muted)}
-.kv dd{margin:0;text-align:right;font-variant-numeric:tabular-nums;min-width:0;overflow-wrap:anywhere}
+.gauge{position:relative;padding-bottom:var(--space-3)}
+.gauge .btn{position:absolute;top:var(--space-3);right:var(--space-3)}
+.gauge svg{width:100%;max-width:400px;display:block;margin:0 auto}
+.g-track{fill:none;stroke:var(--color-surface-2);stroke-width:12;stroke-linecap:round}
+.g-red{fill:none;stroke:color-mix(in srgb,var(--color-crit) 60%,transparent);stroke-width:12;stroke-linecap:round}
+.g-val{fill:none;stroke:var(--color-accent-strong);stroke-width:12;stroke-linecap:round;transition:stroke-dasharray .25s linear}
+.g-val.red{stroke:var(--color-crit)}
+.g-tick{stroke:var(--color-fg-muted);stroke-width:1.5}
+.g-lbl{fill:var(--color-fg-muted);font:500 11px var(--font-num);text-anchor:middle;dominant-baseline:middle;font-variant-numeric:tabular-nums}
+.g-speed{fill:var(--color-fg);font:600 60px var(--font-num);text-anchor:middle;font-variant-numeric:tabular-nums;letter-spacing:-.04em}
+.g-unit{fill:var(--color-fg-muted);font:500 12px var(--font-sans);text-anchor:middle}
+.g-rpm{fill:var(--color-fg);font:600 17px var(--font-num);text-anchor:middle;font-variant-numeric:tabular-nums}
+.vitals{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--space-2);margin-top:var(--space-2)}
+.vital{background:var(--tile-bg);border-radius:var(--tile-radius);padding:var(--space-2) var(--space-3);min-width:0}
+.vital .k{font-size:var(--fs-12);color:var(--color-fg-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vital .v{font:600 var(--fs-22)/1.15 var(--font-num);font-variant-numeric:tabular-nums;white-space:nowrap}
+.vital .v small{font:500 var(--fs-12) var(--font-sans);color:var(--color-fg-muted);margin-left:2px}
+.vital .u{font-size:var(--fs-12);color:var(--color-fg-muted);line-height:1.3}
+.vital .bar{height:4px;margin-top:6px}
+.fresh{display:inline-flex;align-items:center;gap:6px;font-size:var(--fs-12);color:var(--color-fg-muted);font-variant-numeric:tabular-nums}
+.fresh .dot{width:6px;height:6px}
+.fresh.stale{color:var(--color-warn)}
+.stale-data .tile .v,.stale-data .vital .v,.stale-data .g-speed,.stale-data .g-rpm{opacity:.45;transition:opacity var(--dur-base)}
+.big{font:600 40px/1 var(--font-num);font-variant-numeric:tabular-nums}
+.big small{font:500 var(--fs-14) var(--font-sans);color:var(--color-fg-muted);margin-left:4px}
+.bar{position:relative;height:10px;border-radius:var(--radius-full);background:var(--color-surface-2);margin-top:var(--space-3);overflow:hidden}
+.bar .band{position:absolute;top:0;bottom:0;background:color-mix(in srgb,var(--color-ok) 25%,transparent)}
+.bar .fill{position:absolute;left:0;top:0;bottom:0;border-radius:inherit;background:var(--color-accent);transition:width .3s}
+.scale{display:flex;justify-content:space-between;font:var(--fs-12) var(--font-num);color:var(--color-fg-muted);margin-top:6px;font-variant-numeric:tabular-nums}
 
-.chart-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:8px}
-.chart-head h3{margin:0;font:600 18px var(--f-display)}
-.stats{display:flex;gap:16px;font-size:13px;color:var(--muted);flex-wrap:wrap}
-.stats b{color:var(--fg);font-weight:600;font-variant-numeric:tabular-nums}
+/* === HAP (durum etiketi) === */
+.pill{display:inline-flex;align-items:center;gap:6px;min-height:var(--pill-h);font-size:var(--fs-12);font-weight:600;padding:2px 10px;border-radius:var(--radius-full);border:1px solid var(--color-divider);background:var(--color-surface-2);color:var(--color-fg);white-space:nowrap}
+.pill.ok{color:var(--color-ok);border-color:color-mix(in srgb,var(--color-ok) 40%,transparent);background:color-mix(in srgb,var(--color-ok) 10%,transparent)}
+.pill.warn{color:var(--color-warn);border-color:color-mix(in srgb,var(--color-warn) 40%,transparent);background:color-mix(in srgb,var(--color-warn) 10%,transparent)}
+.pill.crit{color:var(--color-crit);border-color:color-mix(in srgb,var(--color-crit) 40%,transparent);background:color-mix(in srgb,var(--color-crit) 10%,transparent)}
+.pill.ok::before,.pill.warn::before,.pill.crit::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;flex:none}
+
+/* === ANAHTAR-DEĞER === */
+.kv{display:grid;grid-template-columns:auto 1fr;gap:var(--space-2) var(--space-4);font-size:var(--fs-14);margin:0}
+.kv dt{color:var(--color-fg-muted)}
+.kv dd{margin:0;text-align:right;font-variant-numeric:tabular-nums;min-width:0;overflow-wrap:anywhere}
+.kv dd.mono{font-size:var(--fs-13)}
+
+/* === GRAFİK === */
+.chart-head{display:flex;justify-content:space-between;align-items:center;gap:var(--space-3);flex-wrap:wrap;margin-bottom:var(--space-2)}
+.chart-head h3{margin:0;font:600 var(--fs-16) var(--font-sans)}
+.chart-now{font:600 var(--fs-28)/1 var(--font-num);font-variant-numeric:tabular-nums}
+.chart-now small{font:500 var(--fs-13) var(--font-sans);color:var(--color-fg-muted);margin-left:4px}
+.stats{display:flex;gap:var(--space-4);font-size:var(--fs-13);color:var(--color-fg-muted);flex-wrap:wrap;margin-top:var(--space-2)}
+.stats b{color:var(--color-fg);font:600 var(--fs-13) var(--font-num);font-variant-numeric:tabular-nums}
 canvas{width:100%;height:150px;display:block}
 canvas.small{height:110px}
 
-.group{display:grid;gap:8px}
-.group + .group{margin-top:18px}
-.group h4{margin:0;font:600 12px var(--f-body);color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
-.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
-.tile{text-align:left;border:1px solid var(--line);background:var(--surface-2);border-radius:10px;padding:10px 12px;cursor:pointer;display:grid;gap:2px;min-width:0}
-.tile[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
-.tile .l{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.tile .v{font:700 24px/1.1 var(--f-display);font-variant-numeric:tabular-nums}
-.tile .u{font-size:12px;color:var(--muted)}
-.tile .pill{padding:0 7px;font-size:11px}
-.tile .v.na{color:var(--muted);font-weight:400}
+/* === CANLI VERİ KUTULARI === */
+details.group{display:block}
+details.group + details.group{margin-top:var(--space-3)}
+details.group > summary{list-style:none;display:flex;align-items:center;gap:var(--space-2);min-height:44px;cursor:pointer;font:600 var(--fs-13) var(--font-sans);color:var(--color-fg-muted);text-transform:uppercase;letter-spacing:.06em}
+details.group > summary::-webkit-details-marker{display:none}
+details.group > summary .cnt{margin-left:auto;font:500 var(--fs-12) var(--font-num);letter-spacing:0;text-transform:none;padding:2px 8px;border-radius:var(--radius-full);background:var(--color-surface-2);font-variant-numeric:tabular-nums}
+details.group > summary::after{content:"";width:7px;height:7px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(45deg) translateY(-2px);transition:transform var(--dur-base) var(--ease-out);margin-right:4px}
+details.group:not([open]) > summary::after{transform:rotate(-45deg)}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:var(--space-2);padding-bottom:var(--space-1)}
+.tile{text-align:left;border:1px solid transparent;background:var(--tile-bg);border-radius:var(--tile-radius);padding:var(--space-3);min-height:84px;cursor:pointer;display:grid;gap:2px;align-content:start;min-width:0;transition:border-color var(--dur-fast),transform var(--dur-base) var(--ease-out)}
+.tile:active{transform:scale(.97)}
+.tile[aria-pressed="true"]{border-color:var(--color-accent-strong);background:color-mix(in srgb,var(--color-accent) 8%,var(--tile-bg))}
+.tile .l{font-size:var(--fs-12);color:var(--color-fg-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile .v{font:600 var(--fs-22)/1.2 var(--font-num);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.tile .u{font-size:var(--fs-12);color:var(--color-fg-muted)}
+.tile .pill{min-height:18px;padding:0 6px;font-size:11px}
+.tile .v.na{color:var(--color-fg-muted);font-weight:400}
 
-.metrics{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px 16px}
-.metric .k{font-size:12px;color:var(--muted)}
-.metric .v{font:700 22px/1.2 var(--f-display);font-variant-numeric:tabular-nums}
-.metric .v small{font:500 12px var(--f-body);color:var(--muted);margin-left:3px}
+/* === METRİKLER === */
+.metrics{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:var(--space-3) var(--space-4)}
+.metric .k{font-size:var(--fs-12);color:var(--color-fg-muted)}
+.metric .v{font:600 var(--fs-22)/1.25 var(--font-num);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.metric .v small{font:500 var(--fs-12) var(--font-sans);color:var(--color-fg-muted);margin-left:3px;letter-spacing:0}
 
-table{width:100%;border-collapse:collapse;font-size:14px}
-th{text-align:left;font-weight:600;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
-td{padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+/* === TABLO (ham PID, 0-100 geçmişi) === */
+table{width:100%;border-collapse:collapse;font-size:var(--fs-14)}
+th{text-align:left;font-weight:600;font-size:var(--fs-12);color:var(--color-fg-muted);text-transform:uppercase;letter-spacing:.05em;padding:6px 8px;border-bottom:1px solid var(--color-divider);white-space:nowrap}
+td{padding:10px 8px;border-bottom:1px solid var(--color-divider);vertical-align:top}
 td.r,th.r{text-align:right;font-variant-numeric:tabular-nums}
 tr:last-child td{border-bottom:0}
 .tbl{overflow-x:auto}
-.code{font:600 15px var(--f-mono);white-space:nowrap}
-.confirm{border:1px solid color-mix(in srgb,var(--crit) 50%,var(--line));border-radius:10px;padding:14px;display:grid;gap:10px;background:color-mix(in srgb,var(--crit) 7%,var(--surface))}
-.confirm p{margin:0}
+.code{font:600 var(--fs-16) var(--font-mono);white-space:nowrap}
 
-.form{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
-label.f{display:grid;gap:4px;font-size:13px;color:var(--muted);min-width:0}
-input,select{background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%;min-width:0}
-.check{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--muted)}
-.check input{width:auto}
+/* === LİSTELER === */
+.dlist{display:grid;gap:var(--space-2)}
+.dtc{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px var(--space-3);align-items:start;padding:var(--space-3);border-radius:var(--radius-md);background:var(--color-surface-2);border-left:3px solid var(--color-divider)}
+.dtc .code{line-height:1.4}
+.dtc.crit{border-left-color:var(--color-crit)} .dtc.crit .code{color:var(--color-crit)}
+.dtc.warn{border-left-color:var(--color-warn)} .dtc.warn .code{color:var(--color-warn)}
+.dtc .desc{font-weight:500;line-height:1.4;font-size:var(--fs-14)}
+.dtc .meta{grid-column:2;display:flex;gap:6px;flex-wrap:wrap;font-size:var(--fs-12);color:var(--color-fg-muted)}
+.none{color:var(--color-fg-muted);font-size:var(--fs-14);padding:var(--space-1) 0}
+.list{display:grid}
+.li{display:flex;justify-content:space-between;align-items:center;gap:var(--space-3);min-height:48px;padding:var(--space-2) 0;border-bottom:1px solid var(--color-divider);min-width:0;font-size:var(--fs-14)}
+.li:last-child{border-bottom:0}
+.li .k{min-width:0}
+.li .k small{display:block;color:var(--color-fg-muted);font-size:var(--fs-13);font-variant-numeric:tabular-nums}
+.li .num{font-family:var(--font-num);font-size:var(--fs-14);font-variant-numeric:tabular-nums}
+.m6{display:grid;gap:var(--space-2);padding:var(--space-3) 0;border-bottom:1px solid var(--color-divider)}
+.m6:first-child{padding-top:0}
+.m6:last-child{border-bottom:0}
+.m6-head{display:flex;justify-content:space-between;gap:var(--space-3);align-items:flex-start}
+.m6-name{font-size:var(--fs-14);line-height:1.4;min-width:0}
+.m6-name small{display:block;color:var(--color-fg-muted);font-size:var(--fs-12)}
+.range{position:relative;height:8px;border-radius:var(--radius-full);background:var(--color-surface-2);margin:0 2px}
+.range .in{position:absolute;top:0;bottom:0;border-radius:var(--radius-full);background:color-mix(in srgb,var(--color-ok) 35%,transparent)}
+.range .mk{position:absolute;top:-4px;width:4px;height:16px;border-radius:2px;background:var(--color-fg);transform:translateX(-50%)}
+.range.bad .mk{background:var(--color-crit)}
+.range-lbl{display:flex;justify-content:space-between;gap:var(--space-2);font:var(--fs-12) var(--font-num);color:var(--color-fg-muted);font-variant-numeric:tabular-nums}
+.range-lbl b{color:var(--color-fg);font-weight:600}
+.mis{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:var(--space-2)}
+.mis > div{border-radius:var(--radius-md);padding:var(--space-3);background:var(--color-surface-2)}
+.mis .k{font-size:var(--fs-12);color:var(--color-fg-muted)}
+.mis .v{font:600 var(--fs-22)/1.2 var(--font-num);font-variant-numeric:tabular-nums}
+.mis .v small{font:500 var(--fs-12) var(--font-sans);color:var(--color-fg-muted)}
+.mis .bad .v{color:var(--color-warn)}
+.confirm{border:1px solid color-mix(in srgb,var(--color-crit) 45%,transparent);border-radius:var(--radius-md);padding:var(--space-4);display:grid;gap:var(--space-3);background:color-mix(in srgb,var(--color-crit) 8%,var(--color-surface))}
+.confirm p{margin:0;font-size:var(--fs-14)}
 
-.steps{display:grid;gap:14px}
-.step{display:grid;gap:8px;padding-top:14px;border-top:1px solid var(--line)}
+/* === YOLCULUK === */
+.trips{display:grid;gap:var(--space-2)}
+.trip{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px var(--space-3);align-items:center;padding:var(--space-3);border:1px solid transparent;border-radius:var(--radius-md);background:var(--color-surface-2);text-align:left;cursor:pointer;width:100%;min-height:64px;transition:border-color var(--dur-fast),transform var(--dur-base) var(--ease-out)}
+.trip:active{transform:scale(.98)}
+.trip[aria-pressed="true"]{border-color:var(--color-accent-strong)}
+.trip .when{font-weight:600;font-size:var(--fs-14)}
+.trip .sub{grid-column:1;font-size:var(--fs-13);color:var(--color-fg-muted);font-variant-numeric:tabular-nums}
+.trip .pill{grid-row:1 / span 2;grid-column:2}
+.score{font:600 48px/1 var(--font-num);font-variant-numeric:tabular-nums;letter-spacing:-.03em}
+.score small{font:500 var(--fs-14) var(--font-sans);color:var(--color-fg-muted);margin-left:4px;letter-spacing:0}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chips .pill{white-space:normal;line-height:1.35;padding:4px 10px}
+
+/* === FORM === */
+.form{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:var(--space-3)}
+label.f{display:grid;gap:6px;font-size:var(--fs-13);font-weight:500;color:var(--color-fg-muted);min-width:0}
+input,select{background:var(--input-bg);border:1px solid var(--input-border);border-radius:var(--radius-md);min-height:var(--input-h);padding:0 var(--space-3);width:100%;min-width:0;font-size:var(--fs-16);color:var(--color-fg)}
+input::placeholder{color:var(--color-fg-muted);opacity:.8}
+.check{display:flex;gap:var(--space-2);align-items:center;font-size:var(--fs-13);color:var(--color-fg-muted);min-height:44px;cursor:pointer}
+.check input{width:20px;min-height:20px;height:20px;accent-color:var(--color-accent-strong)}
+.sw{display:flex;justify-content:space-between;align-items:center;gap:var(--space-4);min-height:56px;padding:var(--space-2) 0;border-bottom:1px solid var(--color-divider);font-size:var(--fs-14);font-weight:500;cursor:pointer}
+.sw:last-child{border-bottom:0}
+.sw small{display:block;color:var(--color-fg-muted);font-size:var(--fs-12);font-weight:400;margin-top:1px}
+.sw input{appearance:none;-webkit-appearance:none;width:48px;min-height:28px;height:28px;border-radius:14px;background:var(--color-border);position:relative;cursor:pointer;flex:none;transition:background-color var(--dur-base);border:0;padding:0;margin:0}
+.sw input::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:var(--white);box-shadow:0 1px 3px rgb(0 0 0 / .3);transition:transform var(--dur-base) var(--ease-out)}
+.sw input:checked{background:var(--color-accent)}
+.sw input:checked::after{transform:translateX(20px)}
+.btn3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--space-2)}
+.btn3 .btn{padding-inline:var(--space-2)}
+
+/* === TESTLER, BAKIM === */
+.steps{display:grid;gap:var(--space-4)}
+.step{display:grid;gap:var(--space-2);padding-top:var(--space-4);border-top:1px solid var(--color-divider)}
 .step:first-child{padding-top:0;border-top:0}
-.step-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
-.step-head b{font-weight:600}
-.step-head .muted{font-weight:400;font-size:13px}
+.step-head{display:flex;justify-content:space-between;align-items:center;gap:var(--space-3);flex-wrap:wrap}
+.step-head b{font-weight:600;font-size:var(--fs-14)}
+.step-head .muted{font-weight:400;font-size:var(--fs-13)}
+.maint{display:grid;gap:var(--space-2)}
+.mi{border-radius:var(--radius-md);padding:var(--space-3);background:var(--color-surface-2)}
+.mi .form{grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:var(--space-2)}
+.mi input{background:var(--color-surface)}
+details.mi{display:block}
+details.mi > summary{list-style:none;display:flex;align-items:center;gap:var(--space-2);min-height:40px;cursor:pointer}
+details.mi > summary::-webkit-details-marker{display:none}
+details.mi > summary b{font-weight:600;font-size:var(--fs-14)}
+details.mi > summary .mi-sum{margin-left:auto;color:var(--color-fg-muted);font:var(--fs-12) var(--font-num);text-align:right;font-variant-numeric:tabular-nums}
+details.mi .mi-body{display:grid;gap:var(--space-3);margin-top:var(--space-3)}
+.timer{font:600 56px/1 var(--font-num);font-variant-numeric:tabular-nums;letter-spacing:-.03em}
+.timer small{font:500 var(--fs-16) var(--font-sans);color:var(--color-fg-muted);margin-left:6px;letter-spacing:0}
 
-.maint{display:grid;gap:12px}
-.mi{border:1px solid var(--line);border-radius:10px;padding:12px;display:grid;gap:10px;background:var(--surface-2)}
-.mi .form{grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}
-.mi input{background:var(--surface)}
+/* === TERMİNAL === */
+.term{background:var(--color-bg);border:1px solid var(--color-divider);border-radius:var(--radius-md);height:260px;overflow:auto;padding:var(--space-2) var(--space-3);font:12px/1.55 var(--font-mono);white-space:pre-wrap;overflow-wrap:anywhere;margin:0}
+.term .tx{color:var(--color-accent-strong)}
+.term .rx{color:var(--color-fg)}
+.term .sys{color:var(--color-fg-muted)}
+.term .er{color:var(--color-crit)}
+.term-in{display:flex;gap:var(--space-2);margin-top:var(--space-2)}
+.term-in input{flex:1;font-family:var(--font-mono);font-size:var(--fs-14)}
 
-.timer{font:700 56px/1 var(--f-display);font-variant-numeric:tabular-nums}
-.timer small{font:500 16px var(--f-body);color:var(--muted);margin-left:6px}
-
-.term{background:var(--bg);border:1px solid var(--line);border-radius:8px;height:260px;overflow:auto;padding:8px 10px;font:12px/1.5 var(--f-mono);white-space:pre-wrap;overflow-wrap:anywhere;margin:0}
-.term .tx{color:var(--accent)}
-.term .rx{color:var(--fg)}
-.term .sys{color:var(--muted)}
-.term .er{color:var(--crit)}
-.term-in{display:flex;gap:8px;margin-top:8px}
-.term-in input{flex:1;font-family:var(--f-mono)}
-
-.hud{position:fixed;inset:0;z-index:50;background:var(--hud-bg);color:var(--hud-fg);display:grid;place-items:center;padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+/* === HUD === */
+.hud{position:fixed;inset:0;z-index:var(--z-hud);background:var(--hud-bg);color:var(--hud-fg);display:grid;place-items:center;padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
 .hud-in{display:grid;justify-items:center;gap:6px;width:min(92vw,720px)}
 .hud-in.v{transform:scaleY(-1)}
 .hud-in.h{transform:scaleX(-1)}
-.hud-speed{font:700 min(42vw,300px)/.9 var(--f-display);font-variant-numeric:tabular-nums}
-.hud-unit{font:600 22px var(--f-body);color:var(--hud-dim)}
-.hud-bar{width:100%;height:14px;border-radius:7px;background:#1b1f1d;overflow:hidden;margin-top:12px}
-.hud-bar div{height:100%;width:0;background:var(--accent);transition:width .2s linear}
-.hud-row{display:flex;justify-content:space-between;width:100%;font:600 26px var(--f-display);font-variant-numeric:tabular-nums}
+.hud-speed{font:600 min(40vw,280px)/.9 var(--font-num);font-variant-numeric:tabular-nums;letter-spacing:-.05em}
+.hud-unit{font:600 22px var(--font-sans);color:var(--hud-dim)}
+.hud-bar{width:100%;height:14px;border-radius:7px;background:var(--slate-850);overflow:hidden;margin-top:12px}
+.hud-bar div{height:100%;width:0;background:var(--green-500);transition:width .2s linear}
+.hud-row{display:flex;justify-content:space-between;width:100%;font:600 26px var(--font-num);font-variant-numeric:tabular-nums}
+.hud-alert{font:700 28px/1.2 var(--font-sans);color:var(--red-500);text-align:center;min-height:36px}
 .hud-ctrl{position:fixed;left:max(16px,env(safe-area-inset-left,0px));right:max(16px,env(safe-area-inset-right,0px));bottom:max(16px,env(safe-area-inset-bottom,0px));display:flex;justify-content:space-between;gap:8px}
-.hud-ctrl .btn{background:#151816;border-color:#2b302d;color:var(--hud-fg)}
-@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+.hud-ctrl .btn{--btn-bg:var(--slate-900);--btn-border:var(--slate-700);--btn-fg:var(--slate-50)}
+
+/* === UYARI, BİLDİRİM, VİTES ÖNERİSİ === */
+.alerts{position:fixed;left:0;right:0;top:calc(env(safe-area-inset-top,0px) + var(--space-2));z-index:var(--z-alert);display:grid;gap:var(--space-2);padding:0 max(12px,env(safe-area-inset-right,0px)) 0 max(12px,env(safe-area-inset-left,0px));pointer-events:none;max-width:600px;margin:0 auto}
+.hud:not([hidden]) ~ .alerts{display:none}
+.alert{pointer-events:auto;display:flex;gap:var(--space-3);align-items:center;padding:var(--space-3) var(--space-2) var(--space-3) var(--space-4);border-radius:var(--radius-md);background:var(--red-600);color:var(--white);font-weight:600;line-height:1.3;box-shadow:var(--shadow-float);animation:slideIn var(--dur-base) var(--ease-out)}
+.alert.warn{background:var(--amber-500);color:var(--slate-950)}
+.alert svg{flex:none;width:var(--icon-lg);height:var(--icon-lg)}
+.alert small{display:block;font-weight:400;font-size:var(--fs-13);opacity:.92}
+.alert .x{margin-left:auto;background:none;border:0;color:inherit;width:44px;height:44px;display:grid;place-items:center;font-size:26px;line-height:1;cursor:pointer;flex:none;border-radius:var(--radius-sm)}
+@keyframes slideIn{from{transform:translateY(-12px);opacity:0}}
+.toast{position:fixed;left:50%;bottom:calc(var(--space-6) + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:var(--z-toast);background:var(--color-fg);color:var(--color-bg);padding:var(--space-3) var(--space-4);border-radius:var(--radius-full);font-size:var(--fs-14);font-weight:500;box-shadow:var(--shadow-float);max-width:calc(100vw - 32px);text-align:center;animation:slideUp var(--dur-base) var(--ease-out)}
+@keyframes slideUp{from{transform:translate(-50%,12px);opacity:0}}
+.shift{position:absolute;top:var(--space-3);left:var(--space-3);--pill-h:32px;background:var(--color-accent);color:var(--color-on-accent);border-color:var(--color-accent);font-size:var(--fs-13)}
+.mil-on{color:var(--color-crit);font-weight:600}
+
+/* === TELEFON (≤719px): kompakt üst çubuk + alt menü === */
+@media (max-width:719px){
+  .top .wrap{flex-wrap:nowrap;gap:var(--space-2)}
+  .brand span{display:none}
+  .status{flex:1;justify-content:flex-start}
+  #btnConnect{padding:0 var(--space-3)}
+  nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:var(--z-nav);width:auto;overflow:visible;gap:2px;background:var(--color-chrome);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);border-top:1px solid var(--color-divider);padding:6px max(6px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(6px,env(safe-area-inset-left,0px))}
+  .tab{flex-direction:column;gap:2px;min-height:var(--nav-h);padding:6px 2px;font-size:11px;font-weight:600;border-bottom:0;border-radius:var(--radius-md)}
+  .tab svg{width:var(--icon-lg);height:var(--icon-lg)}
+  .tab[aria-selected="true"]{color:var(--color-accent-strong);background:color-mix(in srgb,var(--color-accent) 12%,transparent)}
+  .badge{top:4px;right:calc(50% - 24px)}
+  main .wrap{padding-block:var(--space-3) calc(var(--nav-h) + var(--space-8) + env(safe-area-inset-bottom,0px))}
+  .card{--card-pad:14px}
+  .tiles{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .card-head .row{width:100%}
+  .card-head .row .btn{flex:1}
+  .toast{bottom:calc(var(--nav-h) + var(--space-6) + env(safe-area-inset-bottom,0px))}
+}
+@media (min-width:720px){ .tab svg{display:none} }
+
+/* === YAZDIRILABİLİR RAPOR === */
+#report{display:none}
+@media print{
+  @page{size:A4;margin:14mm}
+  html,body{background:#fff!important;color:#000}
+  :root{padding:0}
+  body::before{display:none}
+  body > *:not(#report){display:none!important}
+  #report{display:block!important;font:11pt/1.45 var(--font-sans);color:var(--report-ink)}
+}
+#report{--report-ink:var(--slate-900);--report-muted:var(--slate-600);--report-rule:var(--slate-300);--report-bad:var(--red-600);--report-ok:var(--green-700)}
+#report h1{font:700 20pt/1.1 var(--font-sans);margin:0;color:var(--report-ink)}
+#report h2{font:600 10pt var(--font-sans);text-transform:uppercase;letter-spacing:.08em;color:var(--report-muted);margin:var(--space-4) 0 var(--space-2);border-bottom:1.5px solid var(--report-ink);padding-bottom:3px}
+#report table{width:100%;border-collapse:collapse;font-size:10pt}
+#report th,#report td{padding:4px 6px;border-bottom:1px solid var(--report-rule);text-align:left;vertical-align:top}
+#report th{color:var(--report-muted);font-weight:600;text-transform:none;letter-spacing:0;font-size:9pt}
+#report .r{text-align:right;font-family:var(--font-mono)}
+#report .meta{color:var(--report-muted);font-size:10pt;margin-top:var(--space-1)}
+#report .verdict{margin-top:var(--space-3);padding:var(--space-2) var(--space-3);border:2px solid var(--report-ink);border-radius:var(--radius-sm);font-weight:600}
+#report .bad{color:var(--report-bad);font-weight:600}
+#report .okc{color:var(--report-ok);font-weight:600}
+
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
 </style>
 
 </head>
 <body>
 <header class="top">
   <div class="wrap">
-    <div class="brand">Clio OBD</div>
+    <div class="brand"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" style="fill:var(--color-surface-2)"/><path d="M7.5 21.5a9 9 0 1 1 17 0" style="fill:none;stroke:var(--color-accent);stroke-width:3;stroke-linecap:round"/><path d="m16 18 4.5-5" style="stroke:var(--color-fg);stroke-width:2.5;stroke-linecap:round"/><circle cx="16" cy="18" r="2.2" style="fill:var(--color-fg)"/></svg><span>Clio OBD</span></div>
     <div class="status" aria-live="polite"><span class="dot" id="dot"></span><span id="statusText">Bağlı değil</span></div>
     <button class="btn primary" id="btnConnect">Bağlan</button>
     <nav class="tabs" role="tablist">
-      <button class="tab" role="tab" aria-selected="true" data-tab="dash">Gösterge</button>
-      <button class="tab" role="tab" aria-selected="false" data-tab="trip">Yolculuk</button>
-      <button class="tab" role="tab" aria-selected="false" data-tab="dtc">Arızalar</button>
-      <button class="tab" role="tab" aria-selected="false" data-tab="test">Testler</button>
-      <button class="tab" role="tab" aria-selected="false" data-tab="conn">Ayarlar</button>
+      <button class="tab" role="tab" aria-selected="true" data-tab="dash"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 17.5a9 9 0 1 1 17 0"/><path d="m12 14 4.5-4.5"/><circle cx="12" cy="14" r="1.6"/></svg>Gösterge</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="trip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="19" r="2"/><circle cx="18" cy="5" r="2"/><path d="M8 19h8.5a3.5 3.5 0 0 0 0-7h-9a3.5 3.5 0 0 1 0-7H16"/></svg>Yolculuk</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="dtc"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>Arızalar<span class="badge" id="dtcBadge" hidden></span></button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="test"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>Testler</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="conn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>Ayarlar</button>
     </nav>
   </div>
 </header>
@@ -206,29 +454,36 @@ input,select{background:var(--surface-2);border:1px solid var(--line);border-rad
 <!-- GÖSTERGE -->
 <section class="page" id="tab-dash">
   <div class="card empty" id="dashEmpty">
-    <h2>Bağlantı yok</h2>
-    <p>Adaptörü OBD soketine tak, kontağı aç, sonra üstteki Bağlan'a bas. Araç yanında değilken arayüzü demo verisiyle deneyebilirsin.</p>
+    <div class="hero-ico"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 17.5a9 9 0 1 1 17 0"/><path d="m12 14 4.5-4.5"/><circle cx="12" cy="14" r="1.6"/></svg></div>
+    <h1>Araca bağlan</h1>
+    <ol class="steps-list">
+      <li>FD10 adaptörünü direksiyonun altındaki OBD soketine tak.</li>
+      <li>Kontağı aç. Motoru çalıştırman şart değil.</li>
+      <li>Üstteki <b>Bağlan</b> düğmesine bas ve listeden FD10'u seç.</li>
+    </ol>
     <p class="err" id="btWarn" hidden>Bu tarayıcı Bluetooth'a erişemiyor. Sayfayı Android'de Chrome ile bir https adresinden aç.</p>
-    <button class="btn" id="btnDemo">Demo verisiyle dene</button>
+    <p>Araç yanında değilken arayüzü demo verisiyle deneyebilirsin.</p>
+    <button class="btn" id="btnDemo"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 4 14 8-14 8z"/></svg>Demo verisiyle dene</button>
   </div>
 
   <div class="page" id="dash" hidden>
     <div class="cluster">
       <div class="card gauge">
-        <button class="btn sm" id="btnHud">HUD</button>
+        <span class="pill shift" id="shiftHint" hidden>Vites büyüt ↑</span>
+        <button class="btn sm" id="btnHud" aria-label="HUD ekranını aç"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"/></svg>HUD</button>
         <svg viewBox="0 0 240 190" id="rpmGauge" role="img" aria-label="Devir ve hız göstergesi"></svg>
+        <div class="vitals">
+          <div class="vital"><div class="k">Motor suyu</div><div class="v" id="tempVal">–</div><div class="u">°C</div>
+            <div class="bar" aria-hidden="true"><div class="band" style="left:50%;width:25%"></div><div class="fill" id="tempFill" style="width:0"></div></div></div>
+          <div class="vital"><div class="k">Akü</div><div class="v" id="kvBatt">–</div><div class="u">V</div></div>
+          <div class="vital"><div class="k">Tüketim</div><div class="v" id="vCons">–</div><div class="u" id="vConsU">L/100 km</div></div>
+        </div>
       </div>
       <div class="side">
         <div class="card">
-          <div class="card-head"><h2>Motor suyu</h2><span class="pill" id="tempPill">–</span></div>
-          <div class="big" id="tempVal">–<small>°C</small></div>
-          <div class="bar"><div class="band" style="left:50%;width:25%"></div><div class="fill" id="tempFill" style="width:0"></div></div>
-          <div class="scale"><span>40</span><span>80</span><span>100</span><span>120</span></div>
-        </div>
-        <div class="card">
-          <h2>Durum</h2>
+          <div class="card-head"><h2>Durum</h2><span class="fresh" id="fresh" aria-live="off"><span class="dot"></span><span id="freshText">–</span></span></div>
           <dl class="kv">
-            <dt>Akü</dt><dd id="kvBatt">–</dd>
+            <dt>Motor suyu</dt><dd><span class="pill" id="tempPill">–</span></dd>
             <dt>Arıza lambası</dt><dd id="kvMil">–</dd>
             <dt>Yakıt sistemi</dt><dd id="kvFsys">–</dd>
             <dt>Bakım</dt><dd id="kvMaint">–</dd>
@@ -240,17 +495,18 @@ input,select{background:var(--surface-2);border:1px solid var(--line);border-rad
 
     <div class="card">
       <div class="chart-head">
-        <h3 id="chartTitle">Devir</h3>
-        <div class="stats"><span>Min <b id="stMin">–</b></span><span>Maks <b id="stMax">–</b></span><span>Ort <b id="stAvg">–</b></span></div>
+        <div><h3 id="chartTitle">Devir</h3><div class="chart-now" id="chartNow">–</div></div>
+        <button class="btn sm" id="btnChartPause" aria-pressed="false"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg><span>Duraklat</span></button>
       </div>
-      <canvas id="chart"></canvas>
+      <canvas id="chart" role="img" aria-label="Seçili verinin son 300 ölçümü"></canvas>
+      <div class="stats"><span>En düşük <b id="stMin">–</b></span><span>En yüksek <b id="stMax">–</b></span><span>Ortalama <b id="stAvg">–</b></span></div>
     </div>
 
     <div class="card" id="tilesCard"></div>
 
     <div class="card" id="rawCard" hidden>
       <h2>Çözümlenmeyen PID'ler (ham)</h2>
-      <p class="note" style="margin-bottom:10px">ECU bu PID'leri desteklediğini bildiriyor ama panelde çözümü yok. Ham baytlar gösteriliyor.</p>
+      <p class="note" style="margin-bottom:var(--space-3)">ECU bu PID'leri desteklediğini bildiriyor ama panelde çözümü yok. Ham baytlar gösteriliyor.</p>
       <div class="tbl"><table><thead><tr><th>PID</th><th>Ham veri</th></tr></thead><tbody id="rawRows"></tbody></table></div>
     </div>
 
@@ -281,6 +537,9 @@ input,select{background:var(--surface-2);border:1px solid var(--line);border-rad
       <div class="metric"><div class="k">Maks hız</div><div class="v" id="trMax">–</div></div>
       <div class="metric"><div class="k">Rölanti</div><div class="v" id="trIdle">–</div></div>
       <div class="metric"><div class="k">Menzil</div><div class="v" id="trRange">–</div></div>
+      <div class="metric"><div class="k">Eko puan</div><div class="v" id="trScore">–</div></div>
+      <div class="metric"><div class="k">Rölantide yakıt</div><div class="v" id="trIdleFuel">–</div></div>
+      <div class="metric"><div class="k">Sert hızlanma / fren</div><div class="v" id="trHarsh">–</div></div>
     </div>
     <dl class="kv" style="margin-top:14px"><dt>Başlangıç</dt><dd id="trStart">–</dd></dl>
   </div>
@@ -332,10 +591,25 @@ input,select{background:var(--surface-2);border:1px solid var(--line);border-rad
       <div class="metric"><div class="k">Toplam yakıt</div><div class="v" id="totFuel">–</div></div>
       <div class="metric"><div class="k">Toplam tutar</div><div class="v" id="totCost">–</div></div>
     </div>
-    <div class="tbl"><table>
-      <thead><tr><th>Başlangıç</th><th>Bitiş</th><th class="r">km</th><th class="r">L</th><th class="r">L/100 km</th><th class="r">TL/L</th><th class="r">Tutar (TL)</th></tr></thead>
-      <tbody id="tripRows"></tbody>
-    </table></div>
+    <div class="trips" id="tripRows"></div>
+  </div>
+
+  <div class="card" id="tripDetail" hidden>
+    <div class="card-head">
+      <h2 id="tdTitle">Yolculuk</h2>
+      <button class="btn sm" id="btnTdClose">Kapat</button>
+    </div>
+    <div class="row" style="align-items:flex-end;gap:16px;margin-bottom:14px">
+      <div><div class="note">Eko puan</div><div class="score" id="tdScore">–</div></div>
+      <div class="chips" id="tdChips"></div>
+    </div>
+    <div class="metrics" id="tdMetrics" style="margin-bottom:14px"></div>
+    <div id="tdCharts">
+      <div class="chart-head"><h3>Hız</h3><span class="note">km/sa</span></div><canvas class="small" id="tdSpeed"></canvas>
+      <div class="chart-head" style="margin-top:12px"><h3>Devir</h3><span class="note">dev/dk</span></div><canvas class="small" id="tdRpm"></canvas>
+      <div class="chart-head" style="margin-top:12px"><h3>Tüketim</h3><span class="note">L/sa</span></div><canvas class="small" id="tdFuel"></canvas>
+    </div>
+    <p class="note" id="tdNoChart" hidden>Bu yolculuk için grafik verisi yok. Grafikler son 20 yolculukta saklanır.</p>
   </div>
 
   <div class="card">
@@ -355,20 +629,21 @@ input,select{background:var(--surface-2);border:1px solid var(--line);border-rad
   <div class="card">
     <div class="card-head">
       <h2>Arıza kodları</h2>
-      <div class="row">
-        <button class="btn primary" id="btnRead" disabled>Kodları oku</button>
-        <button class="btn danger" id="btnClear" disabled>Kodları sil</button>
-      </div>
+      <span class="note" id="sumTime">Okunmadı</span>
     </div>
     <div class="metrics">
       <div class="metric"><div class="k">Arıza lambası</div><div class="v" id="sumMil">–</div></div>
       <div class="metric"><div class="k">Kayıtlı</div><div class="v" id="sumStored">–</div></div>
       <div class="metric"><div class="k">Bekleyen</div><div class="v" id="sumPending">–</div></div>
       <div class="metric"><div class="k">Kalıcı</div><div class="v" id="sumPerm">–</div></div>
-      <div class="metric"><div class="k">Son okuma</div><div class="v" id="sumTime" style="font-size:16px;padding-top:4px">–</div></div>
+    </div>
+    <div class="row" style="margin-top:14px">
+      <button class="btn primary" id="btnRead" disabled>Kodları oku</button>
+      <button class="btn" id="btnReport">Rapor</button>
+      <button class="btn danger" id="btnClear" disabled>Kodları sil</button>
     </div>
     <div class="confirm" id="clearConfirm" hidden style="margin-top:14px">
-      <p><b>Kodlar, freeze frame ve hazırlık testleri sıfırlanacak.</b> Kontak açık, motor kapalı olmalı. Hazırlık testleri birkaç gün normal sürüşle tamamlanır; muayeneden hemen önce silme.</p>
+      <p><b>Kodlar, freeze frame ve hazırlık testleri sıfırlanacak.</b> Kontak açık, motor kapalı olmalı. Hazırlık testleri birkaç gün normal sürüşle tamamlanır, bu yüzden muayeneden hemen önce silme.</p>
       <div class="row"><button class="btn danger" id="btnClearYes">Sil</button><button class="btn" id="btnClearNo">Vazgeç</button></div>
     </div>
     <p class="err" id="dtcErr" hidden style="margin-top:12px"></p>
@@ -376,44 +651,48 @@ input,select{background:var(--surface-2);border:1px solid var(--line);border-rad
 
   <div class="card">
     <div class="card-head"><h2>Muayene ön kontrolü</h2><span class="pill" id="inspState">Okunmadı</span></div>
-    <div class="tbl"><table><thead><tr><th>Kontrol</th><th>Sonuç</th><th>Durum</th></tr></thead><tbody id="inspRows"></tbody></table></div>
+    <div class="list" id="inspRows"></div>
   </div>
 
   <div class="cols">
     <div class="card">
       <h2>Kayıtlı kodlar</h2>
-      <div class="tbl"><table><thead><tr><th>Kod</th><th>Açıklama</th><th>Sistem</th><th>Kaynak</th></tr></thead><tbody id="listStored"></tbody></table></div>
+      <div class="dlist" id="listStored"></div>
     </div>
     <div class="card">
       <h2>Bekleyen kodlar</h2>
-      <div class="tbl"><table><thead><tr><th>Kod</th><th>Açıklama</th><th>Sistem</th><th>Kaynak</th></tr></thead><tbody id="listPending"></tbody></table></div>
+      <p class="note" style="margin:-4px 0 10px">Bu sürüşte veya son sürüşte görülen, henüz onaylanmamış arızalar.</p>
+      <div class="dlist" id="listPending"></div>
     </div>
   </div>
 
   <div class="card">
     <h2>Kalıcı kodlar</h2>
-    <p class="note" style="margin-bottom:10px">Silme komutuyla gitmez. ECU arızanın düzeldiğini kendi testleriyle doğrulayınca kendiliğinden silinir.</p>
-    <div class="tbl"><table><thead><tr><th>Kod</th><th>Açıklama</th><th>Sistem</th><th>Kaynak</th></tr></thead><tbody id="listPerm"></tbody></table></div>
+    <p class="note" style="margin:-4px 0 10px">Silme komutuyla gitmez. ECU arızanın düzeldiğini kendi testleriyle doğrulayınca kendiliğinden silinir.</p>
+    <div class="dlist" id="listPerm"></div>
   </div>
 
   <div class="cols">
     <div class="card">
       <div class="card-head"><h2>Freeze frame</h2><span class="pill mono" id="ffCode">–</span></div>
-      <div class="tbl"><table><thead><tr><th>Parametre</th><th class="r">Değer</th><th>Birim</th></tr></thead><tbody id="ffRows"></tbody></table></div>
+      <p class="note" style="margin:-4px 0 6px">Arıza kaydedildiği andaki motor değerleri.</p>
+      <div class="list" id="ffRows"></div>
     </div>
     <div class="card">
       <h2>Hazırlık testleri</h2>
-      <div class="tbl"><table><thead><tr><th>Test</th><th>Durum</th></tr></thead><tbody id="listReady"></tbody></table></div>
+      <div class="list" id="listReady"></div>
     </div>
   </div>
 
   <div class="card">
     <div class="card-head">
       <h2>Bileşen testleri (Mode 06)</h2>
-      <div class="row"><span class="pill" id="m6State">Okunmadı</span><button class="btn" id="btnM6" disabled>Testleri oku</button></div>
+      <span class="pill" id="m6State">Okunmadı</span>
     </div>
-    <p class="note" style="margin-bottom:10px">ECU'nun O2 sensörü, katalizör, tekleme gibi izleme testlerinin ham sonuçları. Değer limitlere yakınsa parça henüz arıza vermeden zayıflıyor olabilir.</p>
-    <div class="tbl"><table><thead><tr><th>Test</th><th class="r">Değer</th><th class="r">Min</th><th class="r">Maks</th><th>Birim</th><th>Durum</th></tr></thead><tbody id="m6Rows"></tbody></table></div>
+    <p class="note" style="margin:-4px 0 12px">ECU'nun O2 sensörü, katalizör ve tekleme izleme testlerinin ham sonuçları. Yeşil bant geçme aralığı, çizgi ölçülen değer. Çizgi bandın kenarına yakınsa parça henüz arıza vermeden zayıflıyor olabilir.</p>
+    <div class="row" style="margin-bottom:12px"><button class="btn" id="btnM6" disabled>Testleri oku</button></div>
+    <div class="mis" id="m6Mis" hidden style="margin-bottom:12px"></div>
+    <div class="list" id="m6Rows"></div>
   </div>
 </section>
 
@@ -488,51 +767,83 @@ input,select{background:var(--surface-2);border:1px solid var(--line);border-rad
         <dt>Bağlantı zamanı</dt><dd id="ciTime">–</dd>
       </dl>
     </div>
-    <div class="card">
-      <h2>Ayarlar</h2>
-      <div class="form">
-        <label class="f" for="setProto">OBD protokolü
-          <select id="setProto">
-            <option value="0">Otomatik</option>
-            <option value="3">3 · ISO 9141-2</option>
-            <option value="4">4 · ISO 14230-4 KWP (5 baud)</option>
-            <option value="5">5 · ISO 14230-4 KWP (hızlı)</option>
-            <option value="6">6 · ISO 15765-4 CAN 11 bit 500k</option>
-            <option value="7">7 · ISO 15765-4 CAN 29 bit 500k</option>
-            <option value="8">8 · ISO 15765-4 CAN 11 bit 250k</option>
-            <option value="9">9 · ISO 15765-4 CAN 29 bit 250k</option>
-          </select>
-        </label>
-        <label class="f" for="setUuid">Özel BLE servis UUID
-          <input id="setUuid" class="mono" placeholder="ör. fff0" autocomplete="off" spellcheck="false">
-        </label>
-        <label class="f" for="setCc">Motor hacmi (cc)
-          <input id="setCc" inputmode="numeric" autocomplete="off">
-        </label>
-        <label class="f" for="setTank">Depo hacmi (L)
-          <input id="setTank" inputmode="decimal" autocomplete="off">
-        </label>
-        <label class="f" for="setVe">Hacimsel verim
-          <input id="setVe" inputmode="decimal" autocomplete="off">
-        </label>
+
+    <div class="side">
+      <div class="card">
+        <div class="card-head"><h2>Uygulama</h2><span class="pill" id="appState">–</span></div>
+        <p class="note" id="appNote">Ana ekrana eklersen tam ekran açılır ve internetsiz çalışır.</p>
+        <div class="row" style="margin-top:12px">
+          <button class="btn primary" id="btnInstall" hidden>Ana ekrana ekle</button>
+          <button class="btn" id="btnUpdate" hidden>Yeni sürümü yükle</button>
+        </div>
       </div>
+      <div class="card">
+        <h2>Bağlantı</h2>
+        <label class="sw" for="setAuto"><span>Kopunca otomatik bağlan<small>Yolculuk kaydı devam eder, 2 dakika boyunca denenir</small></span><input type="checkbox" id="setAuto"></label>
+        <div class="row" id="demoDropRow" style="margin-top:10px" hidden><button class="btn" id="btnDemoDrop">Kopmayı dene (demo)</button></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h2>Uyarılar</h2><button class="btn sm" id="btnAlertTest">Uyarıyı dene</button></div>
+    <label class="sw" for="setAlSound"><span>Sesli uyarı</span><input type="checkbox" id="setAlSound"></label>
+    <label class="sw" for="setAlVibe"><span>Titreşim</span><input type="checkbox" id="setAlVibe"></label>
+    <label class="sw" for="setAlMil"><span>Arıza lambası takibi<small>Sürüşte her 30 saniyede kontrol edilir</small></span><input type="checkbox" id="setAlMil"></label>
+    <label class="sw" for="setShift"><span>Vites büyüt önerisi<small>Hafif gazda yüksek devirde gösterilir</small></span><input type="checkbox" id="setShift"></label>
+    <div class="form" style="margin-top:12px">
+      <label class="f" for="setAlTemp">Motor suyu sınırı (°C)<input id="setAlTemp" inputmode="numeric" autocomplete="off"></label>
+      <label class="f" for="setAlVolt">Şarj voltajı alt sınırı (V)<input id="setAlVolt" inputmode="decimal" autocomplete="off"></label>
+      <label class="f" for="setAlSpeed">Hız sınırı (km/sa, boşsa kapalı)<input id="setAlSpeed" inputmode="numeric" autocomplete="off"></label>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Araç ve adaptör ayarları</h2>
+    <div class="form">
+      <label class="f" for="setProto">OBD protokolü
+        <select id="setProto">
+          <option value="0">Otomatik</option>
+          <option value="3">3 · ISO 9141-2</option>
+          <option value="4">4 · ISO 14230-4 KWP (5 baud)</option>
+          <option value="5">5 · ISO 14230-4 KWP (hızlı)</option>
+          <option value="6">6 · ISO 15765-4 CAN 11 bit 500k</option>
+          <option value="7">7 · ISO 15765-4 CAN 29 bit 500k</option>
+          <option value="8">8 · ISO 15765-4 CAN 11 bit 250k</option>
+          <option value="9">9 · ISO 15765-4 CAN 29 bit 250k</option>
+        </select>
+      </label>
+      <label class="f" for="setUuid">Özel BLE servis UUID
+        <input id="setUuid" class="mono" placeholder="ör. fff0" autocomplete="off" spellcheck="false">
+      </label>
+      <label class="f" for="setCc">Motor hacmi (cc)
+        <input id="setCc" inputmode="numeric" autocomplete="off">
+      </label>
+      <label class="f" for="setTank">Depo hacmi (L)
+        <input id="setTank" inputmode="decimal" autocomplete="off">
+      </label>
+      <label class="f" for="setVe">Hacimsel verim
+        <input id="setVe" inputmode="decimal" autocomplete="off">
+      </label>
     </div>
   </div>
 
   <div class="card">
     <div class="card-head">
       <h2>Terminal</h2>
-      <div class="row">
-        <label class="check" for="logPoll"><input type="checkbox" id="logPoll">Canlı veri trafiği</label>
-        <button class="btn" id="btnCopyLog">Kopyala</button>
-        <button class="btn" id="btnClearLog">Temizle</button>
-      </div>
+      <label class="check" for="logPoll"><input type="checkbox" id="logPoll">Canlı veri trafiği</label>
     </div>
     <pre class="term" id="term" aria-live="off"></pre>
     <form class="term-in" id="termForm">
       <input id="termCmd" placeholder="AT veya OBD komutu, ör. ATRV, 010C" autocomplete="off" spellcheck="false" autocapitalize="characters">
       <button class="btn" id="btnSend" disabled>Gönder</button>
     </form>
+    <div class="btn3" style="margin-top:12px">
+      <button class="btn primary" id="btnDiag">Teşhis paketi</button>
+      <button class="btn" id="btnCopyLog">Kopyala</button>
+      <button class="btn" id="btnClearLog">Temizle</button>
+    </div>
+    <p class="note" style="margin-top:8px">Teşhis paketi; adaptör, BLE servisleri, desteklenen PID'ler ve bu oturumdaki tüm komut ve yanıtları tek dosyada toplar. Sorun olursa bu dosyayı gönder.</p>
   </div>
 </section>
 
@@ -544,10 +855,16 @@ input,select{background:var(--surface-2);border:1px solid var(--line);border-rad
     <div class="hud-unit">km/sa</div>
     <div class="hud-bar"><div id="hudBar"></div></div>
     <div class="hud-row"><span id="hudRpm">–</span><span id="hudTemp">–</span></div>
+    <div class="hud-alert" id="hudAlert"></div>
   </div>
   <div class="hud-ctrl"><button class="btn" id="hudMirror">Ayna: kapalı</button><button class="btn" id="hudClose">Kapat</button></div>
 </div>
 
+<div class="alerts" id="alerts" aria-live="assertive"></div>
+<div class="toast" id="toast" role="status" hidden></div>
+<div id="report"></div>
+
+<script src="obd-core.js"></script>
 <script>
 (() => {
 "use strict";
@@ -555,7 +872,7 @@ const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 const enc = new TextEncoder(), dec = new TextDecoder();
 const NF = (v, d=0) => v == null || !isFinite(v) ? '–' : Number(v).toLocaleString('tr-TR',{minimumFractionDigits:d,maximumFractionDigits:d});
-const hex2 = n => n.toString(16).toUpperCase().padStart(2,'0');
+const hex2 = OBD.hex2;
 const pad = (n,l=2) => String(n).padStart(l,'0');
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
@@ -573,7 +890,8 @@ const store = {
 };
 
 /* ---------- ayarlar ve kayıtlı veriler ---------- */
-const DEF = {proto:'0', uuid:'', cc:1149, ve:0.85, tank:55, realAvg:6.8, manualPrice:null, odoKm:null, odoDate:null};
+const DEF = {proto:'0', uuid:'', cc:1149, ve:0.85, tank:55, realAvg:6.8, manualPrice:null, odoKm:null, odoDate:null,
+  autoReconnect:true, alSound:true, alVibe:true, alMil:true, shiftHint:true, alTemp:105, alVolt:13.0, alSpeed:null};
 let settings = {...DEF, ...store.get('clio-obd-settings', {})};
 const saveSettings = () => store.set('clio-obd-settings', settings);
 let trips = store.get('clio-obd-trips', []);
@@ -589,106 +907,8 @@ const MAINT_DEF = [
 let maint = MAINT_DEF.map(d => ({...d, lastKm:null, lastDate:null, ...(store.get('clio-obd-maint', []).find(x => x.id === d.id) || {})}));
 const saveMaint = () => store.set('clio-obd-maint', maint);
 
-/* ---------- PID tanımları (SAE J1979 Mode 01, sayısal olanların tamamı) ---------- */
-const W = (a,b) => a*256+b, PCT = a => a*100/255, TRIM = a => (a-128)*100/128, S16 = v => v > 32767 ? v-65536 : v;
-const PIDS = {
-  '0C':{k:'rpm',     l:'Devir',               u:'dev/dk', n:2, f:(a,b)=>W(a,b)/4, d:0, fast:true, g:'motor'},
-  '0D':{k:'speed',   l:'Hız',                 u:'km/sa',  n:1, f:a=>a, d:0, fast:true, g:'motor'},
-  '04':{k:'load',    l:'Motor yükü',          u:'%',      n:1, f:PCT, d:0, fast:true, g:'motor'},
-  '43':{k:'absLoad', l:'Mutlak yük',          u:'%',      n:2, f:(a,b)=>W(a,b)*100/255, d:0, g:'motor'},
-  '11':{k:'throttle',l:'Gaz kelebeği',        u:'%',      n:1, f:PCT, d:0, fast:true, g:'motor'},
-  '45':{k:'relThr',  l:'Göreli gaz kelebeği', u:'%',      n:1, f:PCT, d:0, g:'motor'},
-  '47':{k:'thrB',    l:'Gaz kelebeği B',      u:'%',      n:1, f:PCT, d:0, g:'motor'},
-  '48':{k:'thrC',    l:'Gaz kelebeği C',      u:'%',      n:1, f:PCT, d:0, g:'motor'},
-  '4C':{k:'thrCmd',  l:'İstenen gaz kelebeği',u:'%',      n:1, f:PCT, d:0, g:'motor'},
-  '49':{k:'pedD',    l:'Gaz pedalı D',        u:'%',      n:1, f:PCT, d:0, g:'motor'},
-  '4A':{k:'pedE',    l:'Gaz pedalı E',        u:'%',      n:1, f:PCT, d:0, g:'motor'},
-  '4B':{k:'pedF',    l:'Gaz pedalı F',        u:'%',      n:1, f:PCT, d:0, g:'motor'},
-  '5A':{k:'relPed',  l:'Göreli gaz pedalı',   u:'%',      n:1, f:PCT, d:0, g:'motor'},
-  '0B':{k:'map',     l:'Manifold basıncı',    u:'kPa',    n:1, f:a=>a, d:0, fast:true, g:'motor'},
-  '0E':{k:'timing',  l:'Ateşleme avansı',     u:'°',      n:1, f:a=>a/2-64, d:1, g:'motor'},
-  '61':{k:'tqDem',   l:'İstenen tork',        u:'%',      n:1, f:a=>a-125, d:0, g:'motor'},
-  '62':{k:'tqAct',   l:'Gerçek tork',         u:'%',      n:1, f:a=>a-125, d:0, g:'motor'},
-  '63':{k:'tqRef',   l:'Referans tork',       u:'Nm',     n:2, f:W, d:0, g:'motor'},
-  '8E':{k:'tqFric',  l:'Sürtünme torku',      u:'%',      n:1, f:a=>a-125, d:0, g:'motor'},
-  '05':{k:'coolant', l:'Motor suyu',          u:'°C',     n:1, f:a=>a-40, d:0, g:'temp'},
-  '5C':{k:'oil',     l:'Motor yağı',          u:'°C',     n:1, f:a=>a-40, d:0, g:'temp'},
-  '0F':{k:'iat',     l:'Emme havası',         u:'°C',     n:1, f:a=>a-40, d:0, g:'temp'},
-  '46':{k:'ambient', l:'Dış hava',            u:'°C',     n:1, f:a=>a-40, d:0, g:'temp'},
-  '3C':{k:'catB1S1', l:'Katalizör B1S1',      u:'°C',     n:2, f:(a,b)=>W(a,b)/10-40, d:0, g:'temp'},
-  '3D':{k:'catB2S1', l:'Katalizör B2S1',      u:'°C',     n:2, f:(a,b)=>W(a,b)/10-40, d:0, g:'temp'},
-  '3E':{k:'catB1S2', l:'Katalizör B1S2',      u:'°C',     n:2, f:(a,b)=>W(a,b)/10-40, d:0, g:'temp'},
-  '3F':{k:'catB2S2', l:'Katalizör B2S2',      u:'°C',     n:2, f:(a,b)=>W(a,b)/10-40, d:0, g:'temp'},
-  '10':{k:'maf',     l:'Hava akışı (MAF)',    u:'g/s',    n:2, f:(a,b)=>W(a,b)/100, d:1, fast:true, g:'fuel'},
-  '5E':{k:'fuelRate',l:'Yakıt debisi (ECU)',  u:'L/sa',   n:2, f:(a,b)=>W(a,b)/20, d:2, g:'fuel'},
-  '06':{k:'stft',    l:'Kısa yakıt trimi',    u:'%',      n:1, f:TRIM, d:1, g:'fuel'},
-  '07':{k:'ltft',    l:'Uzun yakıt trimi',    u:'%',      n:1, f:TRIM, d:1, g:'fuel'},
-  '08':{k:'stft2',   l:'Kısa yakıt trimi B2', u:'%',      n:1, f:TRIM, d:1, g:'fuel'},
-  '09':{k:'ltft2',   l:'Uzun yakıt trimi B2', u:'%',      n:1, f:TRIM, d:1, g:'fuel'},
-  '55':{k:'st2B1',   l:'Arka O2 kısa trim B1',u:'%',      n:1, f:TRIM, d:1, g:'fuel'},
-  '56':{k:'lt2B1',   l:'Arka O2 uzun trim B1',u:'%',      n:1, f:TRIM, d:1, g:'fuel'},
-  '57':{k:'st2B2',   l:'Arka O2 kısa trim B2',u:'%',      n:1, f:TRIM, d:1, g:'fuel'},
-  '58':{k:'lt2B2',   l:'Arka O2 uzun trim B2',u:'%',      n:1, f:TRIM, d:1, g:'fuel'},
-  '44':{k:'lambdaCmd',l:'İstenen lambda',     u:'λ',      n:2, f:(a,b)=>W(a,b)*2/65536, d:3, g:'fuel'},
-  '2F':{k:'fuel',    l:'Yakıt seviyesi',      u:'%',      n:1, f:PCT, d:0, g:'fuel'},
-  '0A':{k:'fuelP',   l:'Yakıt basıncı',       u:'kPa',    n:1, f:a=>a*3, d:0, g:'fuel'},
-  '22':{k:'railVac', l:'Rampa basıncı (vakum)',u:'kPa',   n:2, f:(a,b)=>W(a,b)*0.079, d:1, g:'fuel'},
-  '23':{k:'railP',   l:'Rampa basıncı',       u:'kPa',    n:2, f:(a,b)=>W(a,b)*10, d:0, g:'fuel'},
-  '59':{k:'railAbs', l:'Rampa mutlak basıncı',u:'kPa',    n:2, f:(a,b)=>W(a,b)*10, d:0, g:'fuel'},
-  '5D':{k:'injTime', l:'Enjeksiyon zamanlaması',u:'°',    n:2, f:(a,b)=>W(a,b)/128-210, d:1, g:'fuel'},
-  '52':{k:'ethanol', l:'Etanol oranı',        u:'%',      n:1, f:PCT, d:0, g:'fuel'},
-  '2C':{k:'egrCmd',  l:'İstenen EGR',         u:'%',      n:1, f:PCT, d:0, g:'emis'},
-  '2D':{k:'egrErr',  l:'EGR hatası',          u:'%',      n:1, f:TRIM, d:1, g:'emis'},
-  '2E':{k:'purge',   l:'Kanister boşaltma',   u:'%',      n:1, f:PCT, d:0, g:'emis'},
-  '32':{k:'evapP',   l:'EVAP buhar basıncı',  u:'Pa',     n:2, f:(a,b)=>S16(W(a,b))/4, d:0, g:'emis'},
-  '53':{k:'evapAbs', l:'EVAP mutlak basınç',  u:'kPa',    n:2, f:(a,b)=>W(a,b)/200, d:2, g:'emis'},
-  '54':{k:'evapP2',  l:'EVAP buhar basıncı (geniş)',u:'Pa',n:2, f:(a,b)=>S16(W(a,b)), d:0, g:'emis'},
-  '42':{k:'ecuv',    l:'ECU voltajı',         u:'V',      n:2, f:(a,b)=>W(a,b)/1000, d:1, g:'elec'},
-  '5B':{k:'hybBatt', l:'Hibrit akü',          u:'%',      n:1, f:PCT, d:0, g:'elec'},
-  '33':{k:'baro',    l:'Atmosfer basıncı',    u:'kPa',    n:1, f:a=>a, d:0, g:'count'},
-  '1F':{k:'runtime', l:'Motor çalışma süresi',u:'sn',     n:2, f:W, d:0, g:'count'},
-  '30':{k:'warmups', l:'Kod silmeden beri ısınma',u:'adet',n:1, f:a=>a, d:0, g:'count'},
-  '31':{k:'distClr', l:'Kod silmeden beri',   u:'km',     n:2, f:W, d:0, g:'count'},
-  '4E':{k:'timeClr', l:'Kod silmeden beri süre',u:'dk',   n:2, f:W, d:0, g:'count'},
-  '21':{k:'distMil', l:'Lamba yanıkken yol',  u:'km',     n:2, f:W, d:0, g:'count'},
-  '4D':{k:'timeMil', l:'Lamba yanıkken süre', u:'dk',     n:2, f:W, d:0, g:'count'},
-  'A6':{k:'odo',     l:'Kilometre (ECU)',     u:'km',     n:4, f:(a,b,c,d)=>(a*16777216+b*65536+c*256+d)/10, d:1, g:'count'},
-};
-// O2 sensörleri: 14–1B dar bant (voltaj + trim), 24–2B ve 34–3B geniş bant. Sıra PID 13 düzenine göre B1S1…B2S4.
-const O2POS = ['B1S1','B1S2','B1S3','B1S4','B2S1','B2S2','B2S3','B2S4'];
-const O2SIDE = {B1S1:' (ön)', B1S2:' (arka)'};
-O2POS.forEach((pos, i) => {
-  const s = O2SIDE[pos] || '';
-  PIDS[hex2(0x14+i)] = {k:'o2v'+pos, l:`O2 ${pos} voltajı${s}`, u:'V', n:1, f:a=>a/200, d:3, g:'sensor',
-    x:[{k:'o2t'+pos, l:`O2 ${pos} trimi${s}`, u:'%', d:1, g:'sensor', f:(a,b)=> b == null || b === 255 ? null : TRIM(b)}]};
-  PIDS[hex2(0x24+i)] = {k:'wlv'+pos, l:`Geniş bant ${pos} lambda`, u:'λ', n:4, f:(a,b)=>W(a,b)*2/65536, d:3, g:'sensor',
-    x:[{k:'wvv'+pos, l:`Geniş bant ${pos} voltajı`, u:'V', d:3, g:'sensor', f:(a,b,c,d)=>W(c,d)*8/65536}]};
-  PIDS[hex2(0x34+i)] = {k:'wlc'+pos, l:`Geniş bant ${pos} lambda`, u:'λ', n:4, f:(a,b)=>W(a,b)*2/65536, d:3, g:'sensor',
-    x:[{k:'wcc'+pos, l:`Geniş bant ${pos} akımı`, u:'mA', d:2, g:'sensor', f:(a,b,c,d)=>W(c,d)/256-128}]};
-});
-// Metin döndüren PID'ler
-const bitsList = (a, names) => names.filter((_, i) => a & (1<<i)).join(', ') || 'Yok';
-const FSYS = {1:'Açık devre (motor soğuk)', 2:'Kapalı devre (O2 ile)', 4:'Açık devre (yük veya yakıt kesme)', 8:'Açık devre (arıza)', 16:'Kapalı devre (geri besleme arızalı)'};
-const OBDSTD = {1:'OBD-II (CARB)', 2:'OBD (EPA)', 3:'OBD ve OBD-II', 4:'OBD-I', 5:'OBD uyumlu değil', 6:'EOBD (Avrupa)', 7:'EOBD ve OBD-II', 8:'EOBD ve OBD', 9:'EOBD, OBD ve OBD-II', 10:'JOBD', 11:'JOBD ve OBD-II', 12:'JOBD ve EOBD', 13:'JOBD, EOBD ve OBD-II'};
-const FTYPE = {1:'Benzin', 2:'Metanol', 3:'Etanol', 4:'Dizel', 5:'LPG', 6:'CNG', 7:'Propan', 8:'Elektrik'};
-const TXT = {
-  '03':{l:'Yakıt sistemi', live:true, f:a => FSYS[a] || (a ? 'Kod ' + hex2(a) : 'Kullanılmıyor')},
-  '12':{l:'İkincil hava', live:true, f:a => ({1:'Katalizör öncesi', 2:'Katalizör sonrası', 4:'Dış hava veya kapalı', 8:'Pompa açık (teşhis)'})[a] || (a ? 'Kod ' + hex2(a) : 'Kapalı')},
-  '13':{l:'O2 sensörleri', f:a => bitsList(a, O2POS)},
-  '1D':{l:'O2 sensörleri', f:a => bitsList(a, ['B1S1','B1S2','B2S1','B2S2','B3S1','B3S2','B4S1','B4S2'])},
-  '1C':{l:'OBD standardı', f:a => OBDSTD[a] || 'Kod ' + a},
-  '51':{l:'Yakıt tipi', f:a => FTYPE[a] || 'Kod ' + a},
-};
-const NOT_RAW = new Set(['00','20','40','60','80','A0','C0','E0','01','02']);
-const DERIVED = {
-  batt:{k:'batt', l:'Akü (adaptör)', u:'V',       d:1, g:'elec'},
-  l100:{k:'l100', l:'Anlık tüketim', u:'L/100 km',d:1, g:'fuel'},
-  lph: {k:'lph',  l:'Anlık tüketim', u:'L/sa',    d:2, g:'fuel'},
-};
-const GROUPS = [['motor','Motor'],['fuel','Yakıt'],['temp','Sıcaklık'],['sensor','O2 sensörleri'],['emis','Emisyon'],['elec','Elektrik'],['count','Sayaçlar']];
-const META = {};
-for (const p in PIDS){ META[PIDS[p].k] = PIDS[p]; for (const x of PIDS[p].x || []) META[x.k] = x; }
-for (const k in DERIVED) META[k] = DERIVED[k];
+/* ---------- protokol çekirdeği (obd-core.js) ---------- */
+const {W, PCT, TRIM, S16, PIDS, O2POS, TXT, NOT_RAW, DERIVED, GROUPS, META, lines, bad, pidBytes, decodeDtc, parseDtc, frames, mode9, hexAscii, parseVin, parseCalid, parseCvn, parseEcuName, ECU_NAMES, addMask, parseVolt, ecuIds, DTC_TR, SYS, describe, isOem, READY_B, READY_SPARK, UAS, uas, MID_NAMES, TID_NAME, parseM6} = OBD;
 
 /* ---------- durum ---------- */
 const S = {
@@ -696,12 +916,16 @@ const S = {
   supported:new Set(), values:{}, hist:{}, sel:'rpm', est:false, rec:null, done:null, reqs:[],
   info:{}, mon:null, dtcStored:[], dtcPending:[], dtcPerm:null, lastRead:null, ff:null, wake:null,
   txt:{}, raw:{}, m6:null,
+  maintOpen:new Set(), diag:[], link:null, userStop:false, pollGen:0, alerts:{}, alertMute:{}, alertCnt:{}, milAt:0, shiftN:0,
   trip:null, cal:{factor:1}, fuel:null, launch:null, crank:null
 };
 
 /* ---------- terminal ---------- */
 const term = $('#term'); let logLines = 0;
+// Teşhis paketi için tüm trafik (canlı veri dahil) burada tutulur; terminal yalnızca bir kısmını gösterir
+function diagPush(kind, text){ S.diag.push([Date.now(), kind, text]); if (S.diag.length > 30000) S.diag.splice(0, 5000); }
 function log(kind, text){
+  diagPush(kind, text);
   const line = document.createElement('div'); line.className = kind;
   const d = new Date();
   line.textContent = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}.${pad(d.getMilliseconds(),3)}  ${kind==='tx'?'>':kind==='rx'?'<':'·'} ${text}`;
@@ -729,6 +953,11 @@ class BleTransport {
     this.name = this.dev.name || '(isimsiz)';
     this.dev.addEventListener('gattserverdisconnected', onLinkLost);
     log('sys', `cihaz seçildi: ${this.name}`);
+    await this.attach();
+  }
+  // GATT bağlantısını kurar ve ELM327 karakteristiklerini bulur; kopmadan sonra da aynı cihaz için çağrılır
+  async attach(){
+    this.rx = this.tx = null;
     const server = await this.dev.gatt.connect();
     const services = await server.getPrimaryServices();
     for (const s of services){
@@ -741,8 +970,12 @@ class BleTransport {
     }
     if (!this.rx) throw Object.assign(new Error('Uygun BLE karakteristiği bulunamadı'), {code:'NO_CHAR'});
     await this.rx.startNotifications();
-    this.rx.addEventListener('characteristicvaluechanged', e => this.onData(e.target.value));
+    this.onVal ||= e => this.onData(e.target.value);
+    this.rx.removeEventListener('characteristicvaluechanged', this.onVal);
+    this.rx.addEventListener('characteristicvaluechanged', this.onVal);
+    this.buf = '';
   }
+  reopen(){ return this.attach(); }
   onData(dv){
     this.buf += dec.decode(dv, {stream:true});
     const i = this.buf.indexOf('>');
@@ -787,9 +1020,13 @@ class DemoTransport {
   }
   open(){ return Promise.resolve(); }
   close(){}
+  // Bağlantı kopmasını taklit eder: ms boyunca komutlar hata verir
+  drop(ms){ this.downUntil = performance.now() + ms; setTimeout(onLinkLost, 0); }
+  reopen(){ return performance.now() < (this.downUntil || 0) ? Promise.reject(new Error('cihaz menzilde değil')) : Promise.resolve(); }
   setEngine(on){ this.engine = on; }
   scheduleStart(ms){ this.startAt = performance.now() + ms; }
   send(c){
+    if (performance.now() < (this.downUntil || 0)) return Promise.reject(new Error('GATT bağlantısı yok'));
     return new Promise(r => setTimeout(() => {
       let out = this.reply(c.toUpperCase().replace(/\s/g,''));
       if (this.h && /^[0-9A-F]+$/.test(out) && out.length <= 14) out = '7E8' + hex2(out.length/2) + out;
@@ -887,75 +1124,16 @@ function cmd(c, timeout=4000, quiet=false){
   const run = async () => {
     if (!S.t) throw new Error('Bağlantı yok');
     const show = !quiet || $('#logPoll').checked;
-    if (show) log('tx', c);
-    const r = await S.t.send(c, timeout);
+    if (show) log('tx', c); else diagPush('tx', c);
+    let r;
+    try { r = await S.t.send(c, timeout); }
+    catch (e) { diagPush('er', `${c}: ${e.message}`); throw e; }
     S.reqs.push(performance.now());
-    if (show) log(/TIMEOUT|ERROR|UNABLE|\?/.test(r) ? 'er' : 'rx', r.replace(/[\r\n]+/g,' ⏎ ').trim() || '(boş)');
+    const kind = /TIMEOUT|ERROR|UNABLE|\?/.test(r) ? 'er' : 'rx', txt = r.replace(/[\r\n]+/g,' ⏎ ').trim() || '(boş)';
+    if (show) log(kind, txt); else diagPush(kind, txt);
     return r;
   };
   const p = queue.then(run, run); queue = p.catch(()=>{}); return p;
-}
-const lines = r => r.toUpperCase().split(/[\r\n]+/).map(s=>s.replace(/\s+/g,'')).filter(s => s && !/^(SEARCHING|BUSINIT|OK$|TIMEOUT|>)/.test(s));
-const bad = r => /NO ?DATA|UNABLE|STOPPED|CAN ?ERROR|BUS ?ERROR|BUFFER|TIMEOUT|^\s*\?/m.test(r.toUpperCase());
-function pidBytes(r, mode, pid){
-  const key = hex2(0x40+mode)+pid;
-  for (const l of lines(r)){
-    const s = l.replace(/^[0-9A-F]:/,''); const i = s.indexOf(key);
-    if (i >= 0){ const h = s.slice(i+key.length); const b=[]; for (let j=0;j+1<h.length;j+=2) b.push(parseInt(h.substr(j,2),16)); return b.filter(x=>!isNaN(x)); }
-  }
-  return null;
-}
-const decodeDtc = h => { const a = parseInt(h.substr(0,2),16); return 'PCBU'[a>>6] + ((a>>4)&3) + h[1] + h.substr(2,2); };
-function parseDtc(r, rb){
-  const ls = lines(r).filter(l => /^[0-9A-F:]+$/.test(l));
-  const codes = new Set();
-  const take = (data, hasCount) => {
-    if (!data.startsWith(rb)) return;
-    let body = data.slice(2);
-    if (hasCount){ const n = parseInt(body.substr(0,2),16); body = body.slice(2, 2 + n*4); }
-    for (let i=0;i+3<body.length;i+=4){ const h = body.substr(i,4); if (h !== '0000') codes.add(decodeDtc(h)); }
-  };
-  if (S.isCAN){
-    const multi = ls.some(l => /^[0-9A-F]:/.test(l));
-    if (multi) take(ls.filter(l => /^[0-9A-F]:/.test(l)).map(l => l.slice(2)).join(''), true);
-    else ls.forEach(l => take(l, true));
-  } else ls.forEach(l => take(l, false));
-  return [...codes];
-}
-// Çok çerçeveli CAN yanıtını (ilk satır bayt sayısı, sonra "0:", "1:" …) tek hex dizisine çevirir; key'den itibaren döner
-function frames(r, key){
-  const ls = lines(r).filter(l => /^[0-9A-F:]+$/.test(l));
-  if (!ls.some(l => /^[0-9A-F]:/.test(l))) return null;
-  const lenLine = ls.find(l => /^[0-9A-F]{3}$/.test(l));
-  let hex = ls.filter(l => /^[0-9A-F]:/.test(l)).map(l => l.slice(2)).join('');
-  if (lenLine) hex = hex.slice(0, parseInt(lenLine,16)*2);
-  const i = hex.indexOf(key); return i < 0 ? null : hex.slice(i);
-}
-// Mode 09: "49 PID adet veri…" — CAN'de tek parça, K-line'da sıra numaralı satırlar
-function mode9(r, pid){
-  const key = '49'+pid, f = frames(r, key);
-  if (f) return f.slice(6);
-  const parts = lines(r).filter(l => l.startsWith(key)).map(l => ({n:parseInt(l.substr(4,2),16), d:l.slice(6)})).sort((a,b) => a.n-b.n);
-  return parts.length ? parts.map(p => p.d).join('') : null;
-}
-const hexAscii = hex => { let s = ''; for (let i=0;i+1<hex.length;i+=2){ const c = parseInt(hex.substr(i,2),16); if (c>=0x20 && c<0x7F) s += String.fromCharCode(c); } return s; };
-function parseVin(r){
-  const hex = mode9(r, '02'); if (!hex) return null;
-  const s = hexAscii(hex).replace(/[^0-9A-Z]/g,'');
-  return s.length >= 17 ? s.slice(-17) : null;
-}
-function parseCalid(r){
-  const hex = mode9(r, '04'); if (!hex) return null;
-  const ids = []; for (let i=0;i<hex.length;i+=32){ const s = hexAscii(hex.substr(i,32)).trim(); if (s) ids.push(s); }
-  return ids.length ? ids.join(', ') : null;
-}
-function parseCvn(r){
-  const hex = mode9(r, '06'); if (!hex) return null;
-  const ids = hex.match(/.{8}/g) || []; return ids.length ? ids.join(', ') : null;
-}
-function parseEcuName(r){
-  const hex = mode9(r, '0A'); if (!hex) return null;
-  const s = hexAscii(hex).replace(/\s+/g,' ').trim(); return s || null;
 }
 
 /* ---------- bağlantı akışı ---------- */
@@ -964,7 +1142,10 @@ function setControls(){
   const on = S.connected, testBusy = !!(S.launch || S.crank || S.bTest);
   $('#btnConnect').textContent = on ? (S.mode==='demo' ? 'Demoyu durdur' : 'Bağlantıyı kes') : 'Bağlan';
   $('#btnConnect').disabled = !on && (S.busy || !hasBt);
-  for (const id of ['#btnRead','#btnClear','#btnSend','#btnM6']) $(id).disabled = !on;
+  const live = on && !S.link;
+  for (const id of ['#btnRead','#btnClear','#btnSend','#btnM6']) $(id).disabled = !live;
+  $('#demoDropRow').hidden = !(on && S.mode === 'demo');
+  $('#btnDemoDrop').disabled = !!S.link;
   for (const id of ['#btnRest','#btnCharge','#btnChargeL']) $(id).disabled = !on || testBusy;
   $('#btnCrank').disabled = !on || (testBusy && !S.crank);
   $('#btnLaunch').disabled = !on || (testBusy && !S.launch);
@@ -974,7 +1155,8 @@ function setControls(){
 
 async function start(mode){
   if (S.connected || S.busy) return;
-  S.busy = true; S.mode = mode; setControls();
+  S.busy = true; S.mode = mode; S.userStop = false; S.link = null; S.diag = []; setControls();
+  unlockAudio();
   setStatus(mode==='demo' ? 'Demo başlatılıyor' : 'Cihaz seçiliyor', 'busy');
   try {
     S.t = mode==='demo' ? new DemoTransport() : new BleTransport();
@@ -988,7 +1170,7 @@ async function start(mode){
     if (!S.connected) return;
     requestWake();
     newTrip();
-    S.polling = true; poll();
+    poll();
   } catch (e) {
     S.t?.close(); S.t = null; S.connected = false; queue = Promise.resolve();
     let msg = e.message;
@@ -1000,10 +1182,17 @@ async function start(mode){
   } finally { S.busy = false; setControls(); renderTrip(); }
 }
 
-async function initElm(){
-  S.info = {name:S.t.name, svc:S.t.svc, time:new Date()};
+async function initElm(quick){
+  if (!quick) S.info = {name:S.t.name, svc:S.t.svc, time:new Date()};
   await cmd('ATZ', 5000);
   for (const c of ['ATE0','ATL0','ATS0','ATH0','ATAT1']) await cmd(c);
+  if (quick){
+    // Yeniden bağlanma: desteklenen PID listesi ve kimlik bilgileri zaten biliniyor
+    await cmd('ATSP' + settings.proto);
+    const b = pidBytes(await cmd('0100', 15000), 1, '00');
+    if (!b || b.length < 4) throw Object.assign(new Error('ECU yanıt vermedi'), {code:'NO_ECU'});
+    return;
+  }
   const txtLines = r => r.split(/[\r\n]+/).map(s => s.trim()).filter(s => s && !/^(OK|>|SEARCHING)/i.test(s));
   S.info.ver = txtLines(await cmd('ATI')).join(' ') || '–';
   await cmd('ATSP' + settings.proto);
@@ -1030,27 +1219,15 @@ async function initElm(){
   for (const p in TXT) if (S.supported.has(p)) await readPid(p, false);
 }
 // Başlıkları kısa süre açıp 0100'a kimlerin yanıt verdiğine bakar
-const ECU_NAMES = {'7E8':'Motor','7E9':'Şanzıman','7EA':'Hibrit/ABS','10':'Motor','18':'Şanzıman'};
 async function findEcus(){
-  const found = new Set();
-  try {
-    await cmd('ATH1');
-    for (const l of lines(await cmd('0100', 6000))){
-      if (!/^[0-9A-F]+$/.test(l) || !/4100/.test(l)) continue;
-      let id;
-      if (/^7E[8-F]/.test(l)) id = l.slice(0,3);
-      else if (/^18DAF1/.test(l)) id = l.slice(6,8);
-      else if (l.length >= 6) id = l.slice(4,6);
-      if (id) found.add(id);
-    }
-  } finally { await cmd('ATH0'); }
-  return [...found].map(id => `${ECU_NAMES[id] || 'ECU'} (${id})`);
+  try { await cmd('ATH1'); return ecuIds(await cmd('0100', 6000)); }
+  finally { await cmd('ATH0'); }
 }
-function addMask(set, b, base){ for (let i=0;i<32;i++) if (b[i>>3] & (0x80>>(i&7))) set.add(hex2(base+i+1)); }
 
 function stop(reason){
   endTrip();
-  S.polling = false; S.connected = false;
+  S.polling = false; S.connected = false; S.link = null;
+  for (const id in S.alerts) clearAlert(id);
   if (S.launch) S.launch.state = 'cancel';
   if (S.crank) S.crank.state = 'cancel';
   S.t?.close(); S.t = null; queue = Promise.resolve(); S.pause = 0;
@@ -1059,7 +1236,30 @@ function stop(reason){
   if (reason) log('er', reason);
   setControls(); renderTrip();
 }
-function onLinkLost(){ if (S.connected) stop('Bağlantı koptu'); }
+function onLinkLost(){
+  if (!S.connected || S.link) return;
+  if (settings.autoReconnect && !S.userStop) reconnect(); else stop('Bağlantı koptu');
+}
+// Aynı cihaza artan aralıklarla tekrar bağlanır; yolculuk ve desteklenen PID listesi korunur
+const RECONNECT_MS = 120000;
+async function reconnect(){
+  S.link = 'reconnecting'; S.polling = false; queue = Promise.resolve();
+  log('er', 'bağlantı koptu, yeniden bağlanılıyor'); setControls();
+  const t0 = Date.now(); let n = 0;
+  while (S.link === 'reconnecting' && S.t && Date.now() - t0 < RECONNECT_MS){
+    n++; setStatus(`Yeniden bağlanıyor (${n})`, 'busy');
+    try {
+      await S.t.reopen(); await initElm(true);
+      if (S.link !== 'reconnecting') return;
+      S.link = null; if (S.trip) S.trip.last = 0;
+      setStatus(S.mode === 'demo' ? 'Demo verisi' : 'Bağlı', 'on'); log('sys', `yeniden bağlandı (${n}. deneme)`);
+      toast('Bağlantı geri geldi'); setControls(); poll();
+      return;
+    } catch (e) { log('er', 'yeniden bağlanma: ' + e.message); queue = Promise.resolve(); }
+    await sleep(Math.min(8000, 1000 * 2 ** Math.min(n - 1, 3)));
+  }
+  if (S.link === 'reconnecting') stop('Bağlantı koptu, yeniden bağlanılamadı');
+}
 
 /* ---------- canlı veri döngüsü ---------- */
 function activePids(){ return Object.keys(PIDS).filter(p => S.supported.has(p)); }
@@ -1082,25 +1282,32 @@ async function readPid(p, quiet=true){
 async function poll(){
   const act = activePids(), fast = act.filter(p=>PIDS[p].fast);
   const slow = act.filter(p=>!PIDS[p].fast).concat(Object.keys(TXT).filter(p => TXT[p].live && S.supported.has(p)), rawPids());
+  const gen = ++S.pollGen, alive = () => S.polling && gen === S.pollGen;
+  S.polling = true;
   let cycle = 0;
-  while (S.polling){
+  while (alive()){
     if (S.pause > 0){ await sleep(120); continue; }
     const batch = cycle === 0 ? [...fast, ...slow] : [...fast];
     if (cycle > 0 && slow.length) batch.push(slow[cycle % slow.length]);
     if (cycle % 8 === 0) batch.push('RV');
+    if (settings.alMil && Date.now() - S.milAt > 30000){ S.milAt = Date.now(); batch.push('MIL'); }
     try {
       for (const p of batch){
-        if (!S.polling || S.pause > 0) break;
+        if (!alive() || S.pause > 0) break;
         if (p==='RV'){ const v = parseVolt(await cmd('ATRV', 3000, true)); if (v != null) S.values.batt = v; continue; }
+        if (p==='MIL'){ watchMil(pidBytes(await cmd('0101', 3000, true), 1, '01')); continue; }
         await readPid(p);
       }
-    } catch (e) { if (S.polling) stop('İletişim hatası: ' + e.message); break; }
-    derive(); tripTick(); pushHist(); record(); render();
+    } catch (e) {
+      if (alive()){ if (settings.autoReconnect && !S.userStop) onLinkLost(); else stop('İletişim hatası: ' + e.message); }
+      break;
+    }
+    if (!alive()) break;
+    derive(); tripTick(); pushHist(); record(); checkAlerts(); render();
     cycle++;
     if (S.mode==='demo') await sleep(60);
   }
 }
-const parseVolt = r => { const m = r.match(/(\d+(?:[.,]\d+)?)\s*V/i); return m ? parseFloat(m[1].replace(',','.')) : null; };
 
 function derive(){
   const v = S.values; let maf = v.maf; S.est = false;
@@ -1124,21 +1331,61 @@ function pushHist(){
 
 /* ---------- yol bilgisayarı ---------- */
 const CAL_KM = 25;
-function newTrip(){ S.trip = {start:new Date().toISOString(), dist:0, fuel:0, rawFuel:0, dur:0, idle:0, max:0, last:0, demo:S.mode==='demo'}; renderTrip(); }
+const HARSH_ACC = 11, HARSH_BRK = -14, HIGH_RPM = 3500, SAMPLE_MAX = 1440, SAMPLE_KEEP = 20;
+function newTrip(){
+  S.trip = {start:new Date().toISOString(), dist:0, fuel:0, rawFuel:0, dur:0, idle:0, idleFuel:0, max:0, last:0, demo:S.mode==='demo',
+    ha:0, hb:0, harshAt:0, rpmSum:0, rpmDur:0, highRpm:0, prevV:null, samples:[], sInt:5, sNext:0};
+  renderTrip();
+}
 function tripTick(){
   const T = S.trip; if (!T) return;
   const now = Date.now(), dt = T.last ? Math.min(30, (now - T.last)/1000) : 0; T.last = now;
   const v = S.values;
-  if (v.speed != null){ T.dist += v.speed*dt/3600; T.max = Math.max(T.max, v.speed); if (v.speed < 1 && (v.rpm||0) > 300) T.idle += dt; }
+  if (v.speed != null){
+    T.dist += v.speed*dt/3600; T.max = Math.max(T.max, v.speed);
+    if (v.speed < 1 && (v.rpm||0) > 300){ T.idle += dt; if (v.lph != null) T.idleFuel += v.lph*dt/3600; }
+    // Sert hızlanma/fren: km/sa/sn cinsinden ivme, aynı olay 3 sn içinde bir kez sayılır
+    if (T.prevV != null && dt > 0.05){
+      const a = (v.speed - T.prevV) / dt;
+      if (now - T.harshAt > 3000 && (a > HARSH_ACC || a < HARSH_BRK)){ a > 0 ? T.ha++ : T.hb++; T.harshAt = now; }
+    }
+    T.prevV = v.speed;
+  }
+  if (v.rpm > 300){ T.rpmSum += v.rpm*dt; T.rpmDur += dt; if (v.rpm > HIGH_RPM) T.highRpm += dt; }
   if (v.lphRaw != null){ T.rawFuel += v.lphRaw*dt/3600; T.fuel += v.lph*dt/3600; }
   T.dur += dt;
+  if (T.dur >= T.sNext){
+    T.samples.push([Math.round(T.dur), Math.round(v.speed ?? 0), Math.round((v.rpm ?? 0)/10), Math.round((v.lph ?? 0)*100)]);
+    T.sNext = T.dur + T.sInt;
+    if (T.samples.length > SAMPLE_MAX){ T.samples = T.samples.filter((_, i) => i % 2 === 0); T.sInt *= 2; }
+  }
+}
+// 100 üzerinden: rölanti oranı, 10 km'deki sert olay sayısı ve yüksek devir oranı puan düşürür
+function ecoScore(t){
+  if (!t || t.dist < 0.5 || !t.dur) return null;
+  const idle = t.idle / t.dur, harsh = ((t.ha||0) + (t.hb||0)) / Math.max(t.dist, 1) * 10, high = (t.highRpm||0) / t.dur;
+  return Math.round(clamp(100 - Math.min(30, idle*100) - Math.min(30, harsh*6) - Math.min(25, high*150), 0, 100));
+}
+const scoreCls = s => s == null ? '' : s >= 80 ? 'ok' : s >= 60 ? 'warn' : 'crit';
+function tripAdvice(t){
+  const out = [], idle = t.dur ? t.idle/t.dur : 0, high = t.dur ? (t.highRpm||0)/t.dur : 0;
+  if (idle > 0.15) out.push(['warn', `Rölanti %${Math.round(idle*100)}: uzun beklemelerde motoru kapat`]);
+  if ((t.ha||0) + (t.hb||0) >= 3) out.push(['warn', `${t.ha||0} sert hızlanma, ${t.hb||0} sert fren`]);
+  if (high > 0.05) out.push(['warn', `Sürenin %${Math.round(high*100)}'i ${NF(HIGH_RPM)} dev/dk üstünde: vitesi erken büyüt`]);
+  if (!out.length) out.push(['ok', 'Sakin ve ekonomik sürüş']);
+  return out;
 }
 function endTrip(){
   const T = S.trip; S.trip = null; if (!T) return;
   if (!T.demo && T.dist >= 0.2){
     const price = fuelPrice();
-    trips.unshift({start:T.start, end:new Date().toISOString(), dist:T.dist, fuel:T.fuel, rawFuel:T.rawFuel, dur:T.dur, idle:T.idle, max:T.max, price, cost: price != null ? T.fuel*price : null});
-    trips = trips.slice(0, 300); store.set('clio-obd-trips', trips);
+    const t = {start:T.start, end:new Date().toISOString(), dist:T.dist, fuel:T.fuel, rawFuel:T.rawFuel, dur:T.dur, idle:T.idle, idleFuel:T.idleFuel, max:T.max,
+      ha:T.ha, hb:T.hb, avgRpm: T.rpmDur ? T.rpmSum/T.rpmDur : null, highRpm:T.highRpm, price, cost: price != null ? T.fuel*price : null, samples:T.samples, sInt:T.sInt};
+    t.score = ecoScore(t);
+    trips.unshift(t);
+    trips = trips.slice(0, 300);
+    for (let i = SAMPLE_KEEP; i < trips.length; i++) delete trips[i].samples;
+    store.set('clio-obd-trips', trips);
     log('sys', `yolculuk kaydedildi: ${NF(T.dist,1)} km`);
   }
   recalcCal(); renderTrip(); renderTrips(); renderMaint(); setControls();
@@ -1165,6 +1412,10 @@ function renderTrip(){
   const lvl = S.values.fuel;
   $('#trRange').innerHTML = S.connected && lvl != null ? vU(lvl/100*settings.tank/settings.realAvg*100,0,'km') : '–';
   $('#trStart').textContent = T ? fmtDT(T.start) : '–';
+  const sc = ecoScore(T);
+  $('#trScore').innerHTML = sc != null ? `<span style="color:var(--${scoreCls(sc)})">${sc}</span><small>/100</small>` : '–';
+  $('#trIdleFuel').innerHTML = T ? vU(T.idleFuel,2,'L') : '–';
+  $('#trHarsh').textContent = T ? `${T.ha} / ${T.hb}` : '–';
 }
 function renderTrips(){
   let d=0, f=0, c=0, hasC=false;
@@ -1174,10 +1425,44 @@ function renderTrips(){
   $('#totFuel').innerHTML = trips.length ? vU(f,1,'L') : '–';
   $('#totCost').innerHTML = hasC ? vU(c,0,'TL') : '–';
   $('#btnTripClear').disabled = !trips.length;
-  $('#tripRows').innerHTML = trips.length ? trips.slice(0,50).map(t => `<tr><td>${fmtDTm(t.start)}</td><td>${fmtDTm(t.end)}</td><td class="r">${NF(t.dist,1)}</td><td class="r">${NF(t.fuel,2)}</td><td class="r">${t.dist>=0.5?NF(t.fuel/t.dist*100,1):'–'}</td><td class="r">${NF(t.price,2)}</td><td class="r">${NF(t.cost,2)}</td></tr>`).join('')
-    : `<tr><td colspan="7" class="muted">Henüz yolculuk yok</td></tr>`;
+  $('#tripRows').innerHTML = trips.length ? trips.slice(0,50).map((t, i) => {
+    const sc = t.score ?? ecoScore(t);
+    return `<button class="trip" data-i="${i}" aria-pressed="${i === S.tripSel}"><span class="when">${fmtDTm(t.start)}</span>
+      <span class="sub">${NF(t.dist,1)} km · ${fmtDur(t.dur)} · ${t.dist>=0.5?NF(t.fuel/t.dist*100,1)+' L/100':'–'}${t.cost != null ? ' · '+NF(t.cost,0)+' TL' : ''}</span>
+      <span class="pill ${scoreCls(sc)}">${sc != null ? sc + ' puan' : '–'}</span></button>`;
+  }).join('') : `<div class="none">Henüz yolculuk yok. Bağlanıp sürdüğünde burada listelenir.</div>`;
   renderCal();
 }
+function renderTripDetail(){
+  const t = trips[S.tripSel], card = $('#tripDetail');
+  if (!t){ card.hidden = true; return; }
+  card.hidden = false;
+  const sc = t.score ?? ecoScore(t);
+  $('#tdTitle').textContent = `Yolculuk · ${fmtDTm(t.start)}`;
+  $('#tdScore').innerHTML = sc != null ? `<span style="color:var(--${scoreCls(sc)})">${sc}</span><small>/100</small>` : '–';
+  $('#tdChips').innerHTML = tripAdvice(t).map(([c, x]) => `<span class="pill ${c}">${x}</span>`).join('');
+  const m = [['Mesafe', vU(t.dist,1,'km')], ['Süre', fmtDur(t.dur)], ['Yakıt', vU(t.fuel,2,'L')], ['Ortalama', t.dist>=0.5 ? vU(t.fuel/t.dist*100,1,'L/100') : '–'],
+    ['Tutar', vU(t.cost,2,'TL')], ['Ortalama hız', t.dur > 60 ? vU(t.dist/(t.dur/3600),0,'km/sa') : '–'], ['Maks hız', vU(t.max,0,'km/sa')],
+    ['Ortalama devir', vU(t.avgRpm,0,'dev/dk')], ['Rölanti', fmtDur(t.idle)], ['Rölantide yakıt', vU(t.idleFuel,2,'L')],
+    ['Sert hızlanma', t.ha ?? '–'], ['Sert fren', t.hb ?? '–']];
+  $('#tdMetrics').innerHTML = m.map(([k, v]) => `<div class="metric"><div class="k">${k}</div><div class="v">${v}</div></div>`).join('');
+  const s = t.samples || [];
+  $('#tdCharts').hidden = s.length < 2; $('#tdNoChart').hidden = s.length >= 2;
+  if (s.length >= 2){
+    const cap = `${fmtDur(s[s.length-1][0])} · ${t.sInt||5} sn aralık`;
+    drawLine($('#tdSpeed'), s.map(x => x[1]), {d:0, lo:0, caption:cap});
+    drawLine($('#tdRpm'), s.map(x => x[2]*10), {d:0, lo:0, ref:HIGH_RPM});
+    drawLine($('#tdFuel'), s.map(x => x[3]/100), {d:1, lo:0});
+  }
+}
+$('#tripRows').addEventListener('click', e => {
+  const b = e.target.closest('.trip'); if (!b) return;
+  S.tripSel = +b.dataset.i === S.tripSel ? null : +b.dataset.i;
+  $$('#tripRows .trip').forEach(x => x.setAttribute('aria-pressed', +x.dataset.i === S.tripSel));
+  renderTripDetail();
+  if (S.tripSel != null) $('#tripDetail').scrollIntoView({behavior:'smooth', block:'start'});
+});
+$('#btnTdClose').addEventListener('click', () => { S.tripSel = null; renderTrips(); renderTripDetail(); });
 function renderCal(){
   const c = S.cal;
   $('#calReal').textContent = NF(settings.realAvg,1) + ' L/100 km';
@@ -1189,7 +1474,7 @@ function renderCal(){
 $('#btnTripEnd').addEventListener('click', () => { endTrip(); if (S.connected) newTrip(); setControls(); });
 $('#btnTripClear').addEventListener('click', () => { $('#tripClearConfirm').hidden = false; });
 $('#btnTripClearNo').addEventListener('click', () => { $('#tripClearConfirm').hidden = true; });
-$('#btnTripClearYes').addEventListener('click', () => { trips = []; store.set('clio-obd-trips', trips); $('#tripClearConfirm').hidden = true; recalcCal(); renderTrips(); renderMaint(); });
+$('#btnTripClearYes').addEventListener('click', () => { trips = []; S.tripSel = null; store.set('clio-obd-trips', trips); $('#tripClearConfirm').hidden = true; recalcCal(); renderTrips(); renderTripDetail(); renderMaint(); });
 
 /* ---------- benzin fiyatı ---------- */
 async function loadFuel(){
@@ -1249,8 +1534,10 @@ function renderMaint(){
   list.innerHTML = maint.map(it => {
     const st = maintStatus(it, km);
     if (st.cls === 'crit') due.push(it.name); if (st.cls === 'warn') soon++;
-    return `<div class="mi" data-id="${it.id}">
-      <div class="step-head"><b>${it.name}</b><span class="pill ${st.cls}">${st.txt}</span></div>
+    const sum = st.remKm != null ? (st.remKm > 0 ? `${NF(st.remKm)} km kaldı` : `${NF(-st.remKm)} km geçti`) : st.due ? fmtD(st.due) : '';
+    return `<details class="mi" data-id="${it.id}"${S.maintOpen.has(it.id) ? ' open' : ''}>
+      <summary><b>${it.name}</b><span class="mi-sum">${sum}</span><span class="pill ${st.cls}">${st.txt}</span></summary>
+      <div class="mi-body">
       <div class="form">
         <label class="f" for="m-${it.id}-lastKm">Son yapıldığı km<input id="m-${it.id}-lastKm" data-f="lastKm" inputmode="numeric" value="${it.lastKm ?? ''}" autocomplete="off"></label>
         <label class="f" for="m-${it.id}-lastDate">Son yapıldığı tarih<input id="m-${it.id}-lastDate" data-f="lastDate" type="date" value="${it.lastDate ? it.lastDate.slice(0,10) : ''}"></label>
@@ -1259,8 +1546,10 @@ function renderMaint(){
       </div>
       <dl class="kv"><dt>Sonraki km</dt><dd>${it.lastKm != null ? NF(it.lastKm + it.intKm) : '–'}</dd><dt>Kalan km</dt><dd>${st.remKm != null ? NF(st.remKm) : '–'}</dd><dt>Sonraki tarih</dt><dd>${fmtD(st.due)}</dd></dl>
       <div><button class="btn sm" data-done="${it.id}" ${km == null ? 'disabled' : ''}>Bugün yapıldı</button></div>
-    </div>`;
+      </div>
+    </details>`;
   }).join('');
+  $$('#maintList details').forEach(d => d.addEventListener('toggle', () => { S.maintOpen[d.open ? 'add' : 'delete'](d.dataset.id); }));
   if (focused) document.getElementById(focused)?.focus();
   const ms = $('#maintState');
   ms.className = 'pill ' + (due.length ? 'crit' : soon ? 'warn' : '');
@@ -1309,13 +1598,17 @@ function buildTiles(){
   const keys = activePids().flatMap(p => [PIDS[p].k, ...(PIDS[p].x || []).map(x => x.k)]).concat(['batt']);
   if (S.supported.has('5E') || S.supported.has('10') || (S.supported.has('0B') && S.supported.has('0F') && S.supported.has('0C'))) keys.push('l100','lph');
   let html = '';
+  const closed = new Set(store.get('clio-obd-closed', ['sensor','emis','count']));
   for (const [g, name] of GROUPS){
     const ks = keys.filter(k => META[k].g === g); if (!ks.length) continue;
-    html += `<div class="group"><h4>${name}</h4><div class="tiles">`;
+    html += `<details class="group" data-g="${g}"${closed.has(g) ? '' : ' open'}><summary>${name}<span class="cnt">${ks.length}</span></summary><div class="tiles">`;
     for (const k of ks) html += `<button class="tile" data-k="${k}" aria-pressed="${k===S.sel}"><span class="l">${META[k].l}</span><span class="v na" id="v-${k}">–</span><span class="row" style="gap:6px"><span class="u">${META[k].u}</span>${k==='l100'||k==='lph' ? `<span class="pill" id="e-${k}" hidden>tahmini</span>` : ''}</span></button>`;
-    html += `</div></div>`;
+    html += `</div></details>`;
   }
   $('#tilesCard').innerHTML = html;
+  $$('#tilesCard details').forEach(d => d.addEventListener('toggle', () => {
+    store.set('clio-obd-closed', $$('#tilesCard details:not([open])').map(x => x.dataset.g));
+  }));
   S.keys = GROUPS.flatMap(([g]) => keys.filter(k => META[k].g === g));
   if (!keys.includes(S.sel)) S.sel = keys[0];
 }
@@ -1323,7 +1616,7 @@ $('#tilesCard').addEventListener('click', e => {
   const t = e.target.closest('.tile'); if (!t) return;
   S.sel = t.dataset.k;
   $$('.tile').forEach(x => x.setAttribute('aria-pressed', x.dataset.k===S.sel));
-  drawChart();
+  drawChart(true);
 });
 
 let lastSlow = 0;
@@ -1332,15 +1625,19 @@ function render(){
   const gv = $('#gVal'); gv.setAttribute('stroke-dasharray', `${Math.min(100, rpm/G.max*100).toFixed(2)} 100`); gv.classList.toggle('red', rpm >= G.red);
   $('#gSpeed').textContent = NF(v.speed); $('#gRpm').textContent = NF(v.rpm);
   const c = v.coolant;
-  $('#tempVal').innerHTML = `${NF(c)}<small>°C</small>`;
+  $('#tempVal').textContent = NF(c);
   $('#tempFill').style.width = c == null ? '0' : clamp((c-40)/80*100, 0, 100) + '%';
   const tp = $('#tempPill');
   if (c == null){ tp.className='pill'; tp.textContent='–'; }
   else if (c < 70){ tp.className='pill warn'; tp.textContent='Soğuk'; }
   else if (c <= 104){ tp.className='pill ok'; tp.textContent='Normal'; }
   else { tp.className='pill crit'; tp.textContent='Yüksek'; }
-  $('#kvBatt').textContent = v.batt == null ? '–' : NF(v.batt,1) + ' V';
+  $('#kvBatt').textContent = NF(v.batt, 1);
+  // Araç dururken L/100 km anlamsız; o zaman saatlik tüketim gösterilir
+  $('#vCons').textContent = NF(v.l100 ?? v.lph, 1);
+  $('#vConsU').textContent = v.l100 != null || v.lph == null ? 'L/100 km' : 'L/sa';
   $('#kvFsys').textContent = S.txt['03'] || '–';
+  S.lastUpd = Date.now(); renderFresh();
   const raw = rawPids();
   $('#rawCard').hidden = !raw.length;
   if (raw.length) $('#rawRows').innerHTML = raw.map(p => `<tr><td class="code">01 ${p}</td><td class="mono">${S.raw[p] || '…'}</td></tr>`).join('');
@@ -1351,6 +1648,10 @@ function render(){
     const val = v[k]; el.textContent = NF(val, META[k].d); el.classList.toggle('na', val == null);
     if (k==='l100'||k==='lph') document.getElementById('e-'+k).hidden = !S.est;
   }
+  // Vites önerisi: hafif gazda yüksek devir birkaç döngü sürerse
+  const shift = settings.shiftHint && v.rpm > 2900 && v.speed > 15 && (v.throttle ?? 100) < 40 && (v.load ?? 100) < 60 && (v.coolant ?? 90) > 60;
+  S.shiftN = shift ? S.shiftN + 1 : 0;
+  $('#shiftHint').hidden = S.shiftN < 4;
   if (!$('#hud').hidden) renderHud();
   if (!$('#tab-dash').hidden) drawChart();
   if (now - lastSlow > 1000){ lastSlow = now; renderTrip(); if (S.trip && !S.trip.demo && settings.odoKm != null && !$('#tab-trip').hidden && !$('#maintList').contains(document.activeElement)) renderMaint(); }
@@ -1373,7 +1674,7 @@ function drawLine(cv, data, opts){
   cx.font = `11px ${css('--f-display')}`; cx.fillStyle = css('--muted'); cx.strokeStyle = css('--line'); cx.lineWidth = 1;
   for (let i=0;i<=3;i++){ const val = lo + (hi-lo)*i/3, y = Y(val); cx.beginPath(); cx.moveTo(L,y); cx.lineTo(W-R,y); cx.stroke(); cx.textAlign='right'; cx.textBaseline='middle'; cx.fillText(NF(val, opts.d), L-6, y); }
   if (opts.ref != null && opts.ref > lo && opts.ref < hi){ cx.save(); cx.setLineDash([4,4]); cx.strokeStyle = css('--crit'); cx.beginPath(); cx.moveTo(L, Y(opts.ref)); cx.lineTo(W-R, Y(opts.ref)); cx.stroke(); cx.restore(); }
-  const off = n - data.length, acc = css('--accent');
+  const off = n - data.length, acc = css('--color-accent-strong');
   const path = new Path2D(); data.forEach((val,i)=>{ const x=X(i+off), y=Y(val); i?path.lineTo(x,y):path.moveTo(x,y); });
   const area = new Path2D(path); area.lineTo(X(n-1), T+ph); area.lineTo(X(off), T+ph); area.closePath();
   cx.save(); cx.globalAlpha = .16; cx.fillStyle = acc; cx.fill(area); cx.restore();
@@ -1381,17 +1682,39 @@ function drawLine(cv, data, opts){
   cx.fillStyle = acc; cx.beginPath(); cx.arc(X(n-1), Y(data[data.length-1]), 3.5, 0, Math.PI*2); cx.fill();
   if (opts.caption){ cx.fillStyle = css('--muted'); cx.textAlign='left'; cx.textBaseline='alphabetic'; cx.fillText(opts.caption, L, H-3); }
 }
-function drawChart(){
+function drawChart(force){
   const m = META[S.sel]; if (!m) return;
-  $('#chartTitle').textContent = `${m.l} (${m.u})`;
+  if (S.chartPaused && !force) return;
+  $('#chartTitle').textContent = m.l;
   const data = S.hist[S.sel] || [];
+  $('#chartNow').innerHTML = vU(data[data.length - 1], m.d, m.u);
   if (data.length >= 2){
     const avg = data.reduce((a,b)=>a+b,0)/data.length;
     $('#stMin').textContent = NF(Math.min(...data), m.d); $('#stMax').textContent = NF(Math.max(...data), m.d); $('#stAvg').textContent = NF(avg, m.d);
   } else $('#stMin').textContent = $('#stMax').textContent = $('#stAvg').textContent = '–';
   drawLine($('#chart'), data, {n:300, d:m.d, caption:'son 300 ölçüm'});
 }
-window.addEventListener('resize', () => { drawChart(); if (S.crankSamples) drawLine($('#crankChart'), S.crankSamples, {d:1, ref:9.6}); });
+$('#btnChartPause').addEventListener('click', e => {
+  S.chartPaused = !S.chartPaused;
+  const b = e.currentTarget; b.setAttribute('aria-pressed', S.chartPaused);
+  b.querySelector('span').textContent = S.chartPaused ? 'Devam' : 'Duraklat';
+  b.querySelector('svg').innerHTML = S.chartPaused ? '<path d="m6 4 14 8-14 8z"/>' : '<path d="M8 5v14M16 5v14"/>';
+  if (!S.chartPaused) drawChart();
+});
+// Veri tazeliği: son güncellemeden bu yana geçen süre; 3 sn'yi aşarsa ya da bağlantı yeniden kuruluyorsa veri eski sayılır
+const STALE_MS = 3000;
+function renderFresh(){
+  const el = $('#fresh'); if (!el) return;
+  if (!S.connected){ el.hidden = true; $('#dash').classList.remove('stale-data'); return; }
+  el.hidden = false;
+  const age = S.lastUpd ? Date.now() - S.lastUpd : Infinity, stale = !!S.link || age > STALE_MS;
+  el.classList.toggle('stale', stale);
+  el.querySelector('.dot').className = 'dot ' + (stale ? 'busy' : 'on');
+  $('#freshText').textContent = stale ? (isFinite(age) ? `Veri eski · ${NF(age/1000, 0)} sn` : 'Veri bekleniyor') : (S.mode === 'demo' ? 'Demo · canlı' : 'Canlı');
+  $('#dash').classList.toggle('stale-data', stale);
+}
+setInterval(renderFresh, 1000);
+window.addEventListener('resize', () => { drawChart(true); if (S.crankSamples) drawLine($('#crankChart'), S.crankSamples, {d:1, ref:9.6}); });
 
 /* ---------- CSV kaydı ---------- */
 function record(){
@@ -1416,103 +1739,34 @@ $('#btnCsv').addEventListener('click', () => {
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
 });
 
-/* ---------- arıza kodları ---------- */
-const DTC_TR = {
-  // Değişken supap zamanlaması, krank/eksantrik uyumu
-  P0010:'Eksantrik ayar aktüatörü A devresi (bank 1)', P0011:'Eksantrik A zamanlaması fazla avanslı (bank 1)', P0012:'Eksantrik A zamanlaması fazla geride (bank 1)',
-  P0013:'Eksantrik ayar aktüatörü B devresi (bank 1)', P0014:'Eksantrik B zamanlaması fazla avanslı (bank 1)', P0016:'Krank ve eksantrik A sensörü uyumsuz (bank 1)', P0017:'Krank ve eksantrik B sensörü uyumsuz (bank 1)',
-  // O2 ısıtıcıları
-  P0030:'O2 ısıtıcı kontrol devresi (B1S1)', P0031:'O2 ısıtıcı devresi düşük (B1S1)', P0032:'O2 ısıtıcı devresi yüksek (B1S1)',
-  P0036:'O2 ısıtıcı kontrol devresi (B1S2)', P0037:'O2 ısıtıcı devresi düşük (B1S2)', P0038:'O2 ısıtıcı devresi yüksek (B1S2)',
-  P0068:'Manifold basıncı / hava akışı ile gaz kelebeği uyumsuz', P0069:'Manifold basıncı ile atmosfer basıncı uyumsuz',
-  P0070:'Dış hava sıcaklık sensörü devresi', P0071:'Dış hava sıcaklık sensörü aralık/performans', P0072:'Dış hava sıcaklık sensörü düşük giriş', P0073:'Dış hava sıcaklık sensörü yüksek giriş',
-  // Hava ve yakıt ölçümü
-  P0100:'Hava akış (MAF) sensörü devresi', P0101:'MAF sensörü aralık/performans', P0102:'MAF sensörü düşük giriş', P0103:'MAF sensörü yüksek giriş', P0104:'MAF sensörü kesintili',
-  P0105:'Manifold basınç (MAP) sensörü devresi', P0106:'MAP sensörü aralık/performans', P0107:'MAP sensörü düşük giriş', P0108:'MAP sensörü yüksek giriş', P0109:'MAP sensörü kesintili',
-  P0110:'Emme havası sıcaklık sensörü devresi', P0111:'Emme havası sıcaklık sensörü aralık/performans', P0112:'Emme havası sıcaklık sensörü düşük giriş', P0113:'Emme havası sıcaklık sensörü yüksek giriş', P0114:'Emme havası sıcaklık sensörü kesintili',
-  P0115:'Motor suyu sıcaklık sensörü devresi', P0116:'Su sıcaklık sensörü aralık/performans', P0117:'Su sıcaklık sensörü düşük giriş', P0118:'Su sıcaklık sensörü yüksek giriş', P0119:'Su sıcaklık sensörü kesintili',
-  P0120:'Gaz kelebeği/pedal konum sensörü A devresi', P0121:'Gaz kelebeği sensörü A aralık/performans', P0122:'Gaz kelebeği sensörü A düşük giriş', P0123:'Gaz kelebeği sensörü A yüksek giriş', P0124:'Gaz kelebeği sensörü A kesintili',
-  P0125:'Kapalı devre yakıt kontrolü için su sıcaklığı yetersiz', P0126:'Kararlı çalışma için su sıcaklığı yetersiz', P0127:'Emme havası sıcaklığı çok yüksek',
-  P0128:'Su sıcaklığı termostat değerinin altında (termostat)',
-  // O2 sensörleri
-  P0130:'O2 sensörü devresi (B1S1)', P0131:'O2 sensörü düşük voltaj (B1S1)', P0132:'O2 sensörü yüksek voltaj (B1S1)', P0133:'O2 sensörü yavaş tepki (B1S1)', P0134:'O2 sensöründe aktivite yok (B1S1)', P0135:'O2 sensörü ısıtıcı devresi (B1S1)',
-  P0136:'O2 sensörü devresi (B1S2)', P0137:'O2 sensörü düşük voltaj (B1S2)', P0138:'O2 sensörü yüksek voltaj (B1S2)', P0139:'O2 sensörü yavaş tepki (B1S2)', P0140:'O2 sensöründe aktivite yok (B1S2)', P0141:'O2 sensörü ısıtıcı devresi (B1S2)',
-  P0170:'Yakıt trimi arızası (bank 1)', P0171:'Karışım çok fakir (bank 1)', P0172:'Karışım çok zengin (bank 1)',
-  P0190:'Yakıt rampası basınç sensörü devresi', P0191:'Yakıt rampası basınç sensörü aralık/performans', P0192:'Yakıt rampası basınç sensörü düşük giriş', P0193:'Yakıt rampası basınç sensörü yüksek giriş',
-  // Enjektörler ve yakıt pompası
-  P0200:'Enjektör devresi', P0201:'Enjektör devresi, silindir 1', P0202:'Enjektör devresi, silindir 2', P0203:'Enjektör devresi, silindir 3', P0204:'Enjektör devresi, silindir 4',
-  P0217:'Motor aşırı ısınma durumu', P0219:'Motor aşırı devir durumu',
-  P0220:'Gaz kelebeği/pedal konum sensörü B devresi', P0221:'Gaz kelebeği sensörü B aralık/performans', P0222:'Gaz kelebeği sensörü B düşük giriş', P0223:'Gaz kelebeği sensörü B yüksek giriş',
-  P0230:'Yakıt pompası birincil devresi', P0231:'Yakıt pompası ikincil devresi düşük', P0232:'Yakıt pompası ikincil devresi yüksek',
-  P0261:'Enjektör 1 devresi düşük', P0262:'Enjektör 1 devresi yüksek', P0264:'Enjektör 2 devresi düşük', P0265:'Enjektör 2 devresi yüksek',
-  P0267:'Enjektör 3 devresi düşük', P0268:'Enjektör 3 devresi yüksek', P0270:'Enjektör 4 devresi düşük', P0271:'Enjektör 4 devresi yüksek',
-  // Ateşleme ve tekleme
-  P0300:'Rastgele/çoklu silindir tekleme', P0301:'Silindir 1 tekleme', P0302:'Silindir 2 tekleme', P0303:'Silindir 3 tekleme', P0304:'Silindir 4 tekleme',
-  P0313:'Düşük yakıt seviyesinde tekleme', P0315:'Krank konum sistemi sapması öğrenilmemiş',
-  P0320:'Ateşleme/devir giriş devresi', P0321:'Ateşleme/devir giriş devresi aralık/performans', P0322:'Ateşleme/devir girişinde sinyal yok',
-  P0325:'Vuruntu sensörü 1 devresi', P0326:'Vuruntu sensörü 1 aralık/performans', P0327:'Vuruntu sensörü 1 düşük giriş', P0328:'Vuruntu sensörü 1 yüksek giriş', P0329:'Vuruntu sensörü 1 kesintili',
-  P0335:'Krank mili konum sensörü A devresi', P0336:'Krank mili konum sensörü aralık/performans', P0337:'Krank mili konum sensörü düşük giriş', P0338:'Krank mili konum sensörü yüksek giriş', P0339:'Krank mili konum sensörü kesintili',
-  P0340:'Eksantrik mili konum sensörü A devresi', P0341:'Eksantrik mili konum sensörü aralık/performans', P0342:'Eksantrik mili konum sensörü düşük giriş', P0343:'Eksantrik mili konum sensörü yüksek giriş', P0344:'Eksantrik mili konum sensörü kesintili',
-  P0350:'Ateşleme bobini birincil/ikincil devresi', P0351:'Ateşleme bobini A devresi', P0352:'Ateşleme bobini B devresi', P0353:'Ateşleme bobini C devresi', P0354:'Ateşleme bobini D devresi',
-  // Emisyon kontrolü
-  P0400:'EGR akış arızası', P0401:'EGR akışı yetersiz', P0402:'EGR akışı fazla', P0410:'İkincil hava enjeksiyon sistemi',
-  P0420:'Katalizör verimi eşiğin altında (bank 1)', P0421:'Ön ısıtma katalizörü verimi eşiğin altında (bank 1)', P0422:'Ana katalizör verimi eşiğin altında (bank 1)',
-  P0440:'Buharlaşma (EVAP) sistemi arızası', P0441:'EVAP boşaltma akışı hatalı', P0442:'EVAP sisteminde küçük kaçak', P0443:'EVAP kanister boşaltma valfi devresi',
-  P0444:'EVAP boşaltma valfi devresi açık', P0445:'EVAP boşaltma valfi devresi kısa devre', P0446:'EVAP havalandırma kontrol devresi', P0455:'EVAP sisteminde büyük kaçak', P0456:'EVAP sisteminde çok küçük kaçak',
-  P0460:'Yakıt seviye sensörü devresi', P0461:'Yakıt seviye sensörü aralık/performans', P0462:'Yakıt seviye sensörü düşük giriş', P0463:'Yakıt seviye sensörü yüksek giriş', P0464:'Yakıt seviye sensörü kesintili',
-  P0480:'Soğutma fanı 1 kontrol devresi', P0481:'Soğutma fanı 2 kontrol devresi',
-  // Hız ve rölanti
-  P0500:'Araç hız sensörü', P0501:'Araç hız sensörü aralık/performans', P0502:'Araç hız sensörü düşük giriş', P0503:'Araç hız sensörü kesintili/düzensiz/yüksek',
-  P0505:'Rölanti kontrol sistemi', P0506:'Rölanti beklenenden düşük', P0507:'Rölanti beklenenden yüksek', P0508:'Rölanti kontrol devresi düşük', P0509:'Rölanti kontrol devresi yüksek',
-  P0510:'Kapalı gaz kelebeği konum anahtarı',
-  P0530:'Klima gaz basınç sensörü devresi', P0532:'Klima gaz basınç sensörü düşük giriş', P0533:'Klima gaz basınç sensörü yüksek giriş',
-  P0560:'Sistem voltajı', P0561:'Sistem voltajı kararsız', P0562:'Sistem voltajı düşük', P0563:'Sistem voltajı yüksek', P0571:'Fren anahtarı A devresi',
-  // ECU ve çıkış devreleri
-  P0600:'Seri iletişim hattı', P0601:'ECU hafıza kontrol toplamı hatası', P0602:'ECU programlama hatası', P0603:'ECU kalıcı hafıza (KAM) hatası',
-  P0604:'ECU RAM hatası', P0605:'ECU ROM hatası', P0606:'ECU işlemci arızası', P0607:'ECU performansı',
-  P0615:'Marş rölesi devresi', P0627:'Yakıt pompası kontrol devresi açık', P0630:'ECU\'da şasi no programlanmamış veya uyumsuz',
-  P0638:'Gaz kelebeği aktüatörü aralık/performans (bank 1)', P0641:'Sensör referans voltajı A devresi', P0645:'Klima kompresör rölesi kontrol devresi',
-  P0650:'Arıza lambası (MIL) kontrol devresi', P0651:'Sensör referans voltajı B devresi', P0685:'ECU güç rölesi kontrol devresi', P0688:'ECU güç rölesi algılama devresi',
-  P0700:'Şanzıman kontrol sistemi arıza bildiriyor',
-  // P2xxx
-  P2096:'Katalizör sonrası yakıt trimi çok fakir (bank 1)', P2097:'Katalizör sonrası yakıt trimi çok zengin (bank 1)',
-  P2100:'Gaz kelebeği motoru devresi açık', P2101:'Gaz kelebeği motoru aralık/performans', P2102:'Gaz kelebeği motoru devresi düşük', P2103:'Gaz kelebeği motoru devresi yüksek',
-  P2106:'Gaz kelebeği sistemi, güç sınırlandı', P2108:'Gaz kelebeği kontrol modülü performansı', P2110:'Gaz kelebeği sistemi, devir sınırlandı',
-  P2111:'Gaz kelebeği açık takılı', P2112:'Gaz kelebeği kapalı takılı', P2118:'Gaz kelebeği motoru akımı aralık/performans', P2119:'Gaz kelebeği gövdesi aralık/performans',
-  P2122:'Gaz pedalı sensörü D düşük giriş', P2123:'Gaz pedalı sensörü D yüksek giriş', P2127:'Gaz pedalı sensörü E düşük giriş', P2128:'Gaz pedalı sensörü E yüksek giriş',
-  P2135:'Gaz kelebeği sensörü A-B voltaj uyumsuzluğu', P2138:'Gaz pedalı sensörü D-E voltaj uyumsuzluğu', P2176:'Gaz kelebeği rölanti konumu öğrenilmemiş',
-  P2177:'Rölanti dışında karışım çok fakir (bank 1)', P2178:'Rölanti dışında karışım çok zengin (bank 1)', P2187:'Rölantide karışım çok fakir (bank 1)', P2188:'Rölantide karışım çok zengin (bank 1)',
-  P2195:'O2 sensörü fakirde takılı (B1S1)', P2196:'O2 sensörü zenginde takılı (B1S1)', P2270:'O2 sensörü fakirde takılı (B1S2)', P2271:'O2 sensörü zenginde takılı (B1S2)',
-  P2300:'Ateşleme bobini A kontrol devresi düşük', P2301:'Ateşleme bobini A kontrol devresi yüksek', P2303:'Ateşleme bobini B kontrol devresi düşük', P2304:'Ateşleme bobini B kontrol devresi yüksek',
-  P2306:'Ateşleme bobini C kontrol devresi düşük', P2307:'Ateşleme bobini C kontrol devresi yüksek', P2309:'Ateşleme bobini D kontrol devresi düşük', P2310:'Ateşleme bobini D kontrol devresi yüksek',
-  P2A00:'O2 sensörü devresi aralık/performans (B1S1)',
-  // Ağ
-  U0001:'Yüksek hızlı CAN iletişim hattı', U0073:'Kontrol modülü iletişim hattı A kapalı', U0100:'Motor ECU ile iletişim kaybı', U0101:'Şanzıman ECU ile iletişim kaybı',
-  U0121:'ABS modülü ile iletişim kaybı', U0140:'Gövde kontrol modülü (UCH) ile iletişim kaybı', U0151:'Hava yastığı modülü ile iletişim kaybı',
-  U0155:'Gösterge paneli ile iletişim kaybı', U0164:'Klima kontrol modülü ile iletişim kaybı', U0167:'İmmobilizer ile iletişim kaybı',
-  U0401:'Motor ECU\'dan geçersiz veri', U0415:'ABS modülünden geçersiz veri'
-};
-const SYS = {P:'Motor/şanzıman', C:'Şasi', B:'Gövde', U:'Ağ/iletişim'};
-const RANGE_P = {'0':'Yakıt ve hava ölçümü','1':'Yakıt ve hava ölçümü','2':'Enjektör devresi','3':'Ateşleme sistemi veya tekleme','4':'Emisyon kontrolü','5':'Hız ve rölanti kontrolü','6':'ECU ve çıkış devreleri','7':'Şanzıman','8':'Şanzıman','9':'Şanzıman','A':'Hibrit sistem','B':'Hibrit sistem','C':'Hibrit sistem'};
-const describe = code => DTC_TR[code] || (code[0]==='P' ? (RANGE_P[code[2]] || 'Motor') + ' arızası' : SYS[code[0]] + ' arızası');
-const isOem = code => code[1]==='1' || code[1]==='3';
-
-const READY_B = [[0,4,'Tekleme izleme'],[1,5,'Yakıt sistemi'],[2,6,'Bileşenler']];
-const READY_SPARK = ['Katalizör','Isıtmalı katalizör','Buharlaşma (EVAP)','İkincil hava','Klima gazı','Oksijen sensörü','O2 sensör ısıtıcısı','EGR sistemi'];
+// PID 01: arıza lambası, kod sayısı ve hazırlık testleri
+function parseMon(m){
+  if (!m || m.length < 4) return null;
+  const [A,B,C,D] = m, items = [];
+  for (const [av,inc,name] of READY_B) if (B & (1<<av)) items.push([name, !(B & (1<<inc))]);
+  if (!(B & 0x08)) READY_SPARK.forEach((name,i) => { if (C & (1<<i)) items.push([name, !(D & (1<<i))]); });
+  return {mil: !!(A & 0x80), count: A & 0x7F, items};
+}
+// Sürüşte periyodik kontrol: lamba yeni yandıysa uyarı verir ve kodları sessizce okur
+function watchMil(b){
+  const mon = parseMon(b); if (!mon) return;
+  const was = S.mon?.mil;
+  S.mon = {...(S.mon || {}), ...mon};
+  if (mon.mil && was === false){
+    raiseAlert('mil', 'crit', 'Arıza lambası yandı', 'Arızalar sekmesinden kodlara bak.');
+    setTimeout(() => readDtc(true), 0);
+  }
+  if (!mon.mil) clearAlert('mil');
+  renderDtc();
+}
 async function readDtc(silent){
   if (!S.connected && !silent) return;
   $('#dtcErr').hidden = true; $('#btnRead').disabled = true;
   try {
-    const m = pidBytes(await cmd('0101'), 1, '01');
-    if (m && m.length >= 4){
-      const [A,B,C,D] = m, items = [];
-      for (const [av,inc,name] of READY_B) if (B & (1<<av)) items.push([name, !(B & (1<<inc))]);
-      if (!(B & 0x08)) READY_SPARK.forEach((name,i) => { if (C & (1<<i)) items.push([name, !(D & (1<<i))]); });
-      S.mon = {mil: !!(A & 0x80), count: A & 0x7F, items};
-    } else S.mon = null;
-    const r3 = await cmd('03', 6000); S.dtcStored = bad(r3) ? [] : parseDtc(r3, '43');
-    const r7 = await cmd('07', 6000); S.dtcPending = bad(r7) ? [] : parseDtc(r7, '47');
-    const rA = await cmd('0A', 6000); S.dtcPerm = bad(rA) || !/4A/.test(rA.toUpperCase().replace(/\s/g,'')) ? null : parseDtc(rA, '4A');
+    S.mon = parseMon(pidBytes(await cmd('0101'), 1, '01'));
+    const r3 = await cmd('03', 6000); S.dtcStored = bad(r3) ? [] : parseDtc(r3, '43', S.isCAN);
+    const r7 = await cmd('07', 6000); S.dtcPending = bad(r7) ? [] : parseDtc(r7, '47', S.isCAN);
+    const rA = await cmd('0A', 6000); S.dtcPerm = bad(rA) || !/4A/.test(rA.toUpperCase().replace(/\s/g,'')) ? null : parseDtc(rA, '4A', S.isCAN);
     if (S.supported.has('31')) await readPid('31', false);
     S.ff = await readFreeze();
     S.lastRead = new Date();
@@ -1542,35 +1796,35 @@ async function readFreeze(){
   }
   return {code, rows};
 }
-function rowsFor(list){
-  if (!list.length) return `<tr><td colspan="4" class="muted">Kod yok</td></tr>`;
-  return list.map(c => `<tr><td class="code">${c}</td><td>${describe(c)}</td><td>${SYS[c[0]]}</td><td><span class="pill">${isOem(c)?'Üreticiye özel':'Standart'}</span></td></tr>`).join('');
-}
+const none = t => `<div class="none">${t}</div>`;
+const dtcCards = (list, cls) => list.length ? list.map(c => `<div class="dtc ${cls}"><span class="code">${c}</span><span class="desc">${describe(c)}</span><span class="meta"><span>${SYS[c[0]]}</span><span>·</span><span>${isOem(c)?'Üreticiye özel':'Standart'}</span></span></div>`).join('') : none('Kod yok');
+const li = (k, sub, right) => `<div class="li"><span class="k">${k}${sub != null ? `<small>${sub}</small>` : ''}</span>${right}</div>`;
 function renderDtc(){
-  const mon = S.mon, read = !!S.lastRead, nr = t => `<tr><td colspan="${t}" class="muted">Henüz okunmadı</td></tr>`;
+  const mon = S.mon, read = !!S.lastRead, nr = none('Henüz okunmadı');
   const milTxt = mon ? (mon.mil ? 'Yanıyor' : 'Sönük') : '–';
   $('#sumMil').textContent = milTxt; $('#sumMil').style.color = mon ? (mon.mil ? 'var(--crit)' : 'var(--ok)') : '';
-  $('#kvMil').textContent = milTxt;
+  $('#kvMil').textContent = milTxt; $('#kvMil').className = mon?.mil ? 'mil-on' : '';
   $('#sumStored').textContent = read ? S.dtcStored.length : '–';
   $('#sumPending').textContent = read ? S.dtcPending.length : '–';
-  $('#sumTime').textContent = fmtDT(S.lastRead);
-  $('#listStored').innerHTML = read ? rowsFor(S.dtcStored) : nr(4);
-  $('#listPending').innerHTML = read ? rowsFor(S.dtcPending) : nr(4);
+  $('#sumTime').textContent = read ? 'Son okuma ' + fmtDTm(S.lastRead) : 'Okunmadı';
+  $('#listStored').innerHTML = read ? dtcCards(S.dtcStored, 'crit') : nr;
+  $('#listPending').innerHTML = read ? dtcCards(S.dtcPending, 'warn') : nr;
   $('#sumPerm').textContent = read ? (S.dtcPerm ? S.dtcPerm.length : 'yok') : '–';
-  $('#listPerm').innerHTML = !read ? nr(4) : S.dtcPerm ? rowsFor(S.dtcPerm) : `<tr><td colspan="4" class="muted">ECU kalıcı kod desteklemiyor</td></tr>`;
+  $('#listPerm').innerHTML = !read ? nr : S.dtcPerm ? dtcCards(S.dtcPerm, 'warn') : none('ECU kalıcı kod desteklemiyor');
   $('#listReady').innerHTML = mon && mon.items.length
-    ? mon.items.map(([n,ok]) => `<tr><td>${n}</td><td><span class="pill ${ok?'ok':'warn'}">${ok?'Tamamlandı':'Tamamlanmadı'}</span></td></tr>`).join('')
-    : read ? `<tr><td colspan="2" class="muted">ECU hazırlık bilgisi vermedi</td></tr>` : nr(2);
+    ? mon.items.map(([n,ok]) => li(n, null, `<span class="pill ${ok?'ok':'warn'}">${ok?'Tamamlandı':'Tamamlanmadı'}</span>`)).join('')
+    : read ? none('ECU hazırlık bilgisi vermedi') : nr;
   const ff = S.ff;
   $('#ffCode').textContent = ff?.code || '–';
-  $('#ffRows').innerHTML = !read ? nr(3) : ff && ff.rows.length
-    ? ff.rows.map(([l,v,u,d]) => `<tr><td>${l}</td><td class="r">${typeof v === 'string' ? v : NF(v,d)}</td><td>${u}</td></tr>`).join('')
-    : `<tr><td colspan="3" class="muted">Kayıtlı freeze frame yok</td></tr>`;
+  $('#ffRows').innerHTML = !read ? nr : ff && ff.rows.length
+    ? ff.rows.map(([l,v,u,d]) => li(l, null, `<span class="num" style="text-align:right">${typeof v === 'string' ? v : NF(v,d)} <span class="muted">${u}</span></span>`)).join('')
+    : none('Kayıtlı freeze frame yok');
+  const n = read ? S.dtcStored.length + S.dtcPending.length : 0;
+  $('#dtcBadge').hidden = !(n || mon?.mil); $('#dtcBadge').textContent = n || '!';
+  $('#btnReport').disabled = !read;
   renderInspection();
 }
-function renderInspection(){
-  const st = $('#inspState');
-  if (!S.lastRead){ st.className = 'pill'; st.textContent = 'Okunmadı'; $('#inspRows').innerHTML = `<tr><td colspan="3" class="muted">Kodları oku</td></tr>`; return; }
+function inspectionRows(){
   const rows = [], mon = S.mon;
   rows.push(['Arıza lambası', mon ? (mon.mil ? 'Yanıyor' : 'Sönük') : 'Bilinmiyor', mon ? (mon.mil ? 'crit' : 'ok') : 'warn']);
   rows.push(['Kayıtlı arıza kodu', String(S.dtcStored.length), S.dtcStored.length ? 'crit' : 'ok']);
@@ -1579,10 +1833,16 @@ function renderInspection(){
   if (mon && mon.items.length){ const inc = mon.items.filter(i => !i[1]).length; rows.push(['Hazırlık testleri', inc ? `${inc} test tamamlanmadı` : 'Hepsi tamam', inc ? 'warn' : 'ok']); }
   const dc = S.values.distClr;
   if (dc != null) rows.push(['Kod silmeden beri yol', `${NF(dc)} km`, dc < 100 ? 'warn' : 'ok']);
-  const lbl = {ok:'Tamam', warn:'Dikkat', crit:'Sorun'};
-  $('#inspRows').innerHTML = rows.map(([k,v,c]) => `<tr><td>${k}</td><td class="num">${v}</td><td><span class="pill ${c}">${lbl[c]}</span></td></tr>`).join('');
   const worst = rows.some(r => r[2]==='crit') ? 'crit' : rows.some(r => r[2]==='warn') ? 'warn' : 'ok';
-  st.className = 'pill ' + worst; st.textContent = {ok:'Hazır görünüyor', warn:'Dikkat', crit:'Sorun var'}[worst];
+  return {rows, worst};
+}
+const INSP_LBL = {ok:'Tamam', warn:'Dikkat', crit:'Sorun'}, INSP_SUM = {ok:'Hazır görünüyor', warn:'Dikkat', crit:'Sorun var'};
+function renderInspection(){
+  const st = $('#inspState');
+  if (!S.lastRead){ st.className = 'pill'; st.textContent = 'Okunmadı'; $('#inspRows').innerHTML = none('Kodları oku'); return; }
+  const {rows, worst} = inspectionRows();
+  $('#inspRows').innerHTML = rows.map(([k,v,c]) => li(k, v, `<span class="pill ${c}">${INSP_LBL[c]}</span>`)).join('');
+  st.className = 'pill ' + worst; st.textContent = INSP_SUM[worst];
 }
 $('#btnRead').addEventListener('click', () => readDtc());
 $('#btnClear').addEventListener('click', () => { $('#clearConfirm').hidden = false; });
@@ -1597,53 +1857,6 @@ $('#btnClearYes').addEventListener('click', async () => {
   await readDtc();
 });
 
-/* ---------- Mode 06: izleme testi sonuçları (ISO 15765-4) ---------- */
-// Birim ve ölçek (SAE J1979 UASID): [çarpan, birim, ofset]; 0x80 üstü aynı birimin işaretli hali
-const UAS = {
-  0x01:[1,''],0x02:[0.1,''],0x03:[0.01,''],0x04:[0.001,''],0x05:[0.0000305,''],0x06:[0.000305,''],
-  0x07:[0.25,'dev/dk'],0x08:[0.01,'km/sa'],0x09:[1,'km/sa'],0x0A:[0.000122,'V'],0x0B:[0.001,'V'],0x0C:[0.01,'V'],
-  0x0D:[0.00390625,'mA'],0x0E:[0.001,'A'],0x0F:[0.01,'A'],0x10:[1,'ms'],0x11:[100,'ms'],0x12:[1,'sn'],
-  0x13:[1,'mΩ'],0x14:[1,'Ω'],0x15:[1,'kΩ'],0x16:[0.1,'°C',-40],0x17:[0.01,'kPa'],0x18:[0.0117,'kPa'],0x19:[0.079,'kPa'],
-  0x1A:[1,'kPa'],0x1B:[10,'kPa'],0x1C:[0.01,'°'],0x1D:[0.5,'°'],0x1E:[0.0000305,'λ'],0x1F:[0.05,'hava/yakıt'],
-  0x20:[0.0039062,'oran'],0x21:[1,'mHz'],0x22:[1,'Hz'],0x23:[1,'kHz'],0x24:[1,'adet'],0x25:[1,'km'],
-  0x26:[0.1,'mV/ms'],0x27:[0.01,'g/s'],0x28:[1,'g/s'],0x29:[0.25,'Pa/s'],0x2A:[0.001,'kg/sa'],0x2B:[1,'geçiş'],
-  0x2C:[0.01,'g/silindir'],0x2D:[0.01,'mg/strok'],0x2E:[1,'doğru/yanlış'],0x2F:[0.01,'%'],0x30:[0.001526,'%'],
-  0x31:[0.001,'L'],0x32:[0.0000305,'inç'],0x33:[0.00024414,'oran'],0x34:[1,'dk'],0x35:[10,'ms'],0x36:[0.01,'g'],
-  0x37:[0.1,'g'],0x38:[1,'g'],0x39:[0.01,'%',-327.68],0x3A:[0.001,'g'],0x3B:[0.0001,'g'],0x3C:[0.1,'µs'],
-  0x3D:[0.01,'mA'],0x3F:[0.01,'L'],0x40:[1,'ppm'],0x41:[0.01,'µA'],
-  0x96:[0.1,'°C'],0xFC:[0.01,'kPa'],0xFD:[0.001,'kPa'],0xFE:[0.25,'Pa'],
-};
-function uas(id, raw){
-  const signed = id >= 0x80, s = UAS[id] || (signed ? UAS[id - 0x80] : null);
-  const v = signed && raw > 32767 ? raw - 65536 : raw;
-  if (!s) return {v:raw, u:`ham (${hex2(id)})`, d:0};
-  const val = v * s[0] + ((UAS[id] && UAS[id][2]) || 0);
-  return {v:val, u:s[1], d: s[0] >= 1 ? 0 : Math.min(4, Math.ceil(-Math.log10(s[0])))};
-}
-const MID_NAMES = mid => {
-  const n = parseInt(mid,16);
-  if (n >= 0x01 && n <= 0x08) return `O2 sensörü ${O2POS[n-1]}`;
-  if (n >= 0x21 && n <= 0x24) return `Katalizör bank ${n-0x20}`;
-  if (n >= 0x31 && n <= 0x34) return `EGR / VVT bank ${n-0x30}`;
-  if (n >= 0x35 && n <= 0x38) return `VVT bank ${n-0x34}`;
-  if (n === 0x39) return 'EVAP (kapak açık / 0,150")'; if (n === 0x3A) return 'EVAP (0,090")'; if (n === 0x3B) return 'EVAP (0,040")'; if (n === 0x3C) return 'EVAP (0,020")'; if (n === 0x3D) return 'EVAP boşaltma akışı';
-  if (n >= 0x41 && n <= 0x48) return `O2 ısıtıcısı ${O2POS[n-0x41]}`;
-  if (n >= 0x61 && n <= 0x64) return `Isıtmalı katalizör bank ${n-0x60}`;
-  if (n >= 0x71 && n <= 0x74) return `İkincil hava ${n-0x70}`;
-  if (n >= 0x81 && n <= 0x84) return `Yakıt sistemi bank ${n-0x80}`;
-  if (n === 0xA1) return 'Tekleme (genel)';
-  if (n >= 0xA2 && n <= 0xAD) return `Tekleme silindir ${n-0xA1}`;
-  return `Test grubu ${mid}`;
-};
-const O2_TID = {0x01:'Zenginden fakire eşik voltajı',0x02:'Fakirden zengine eşik voltajı',0x03:'Geçiş süresi için düşük voltaj',0x04:'Geçiş süresi için yüksek voltaj',
-  0x05:'Zenginden fakire geçiş süresi',0x06:'Fakirden zengine geçiş süresi',0x07:'En düşük voltaj',0x08:'En yüksek voltaj',0x09:'Geçişler arası süre',0x0A:'Sensör periyodu'};
-const TID_NAME = (mid, tid) => {
-  const n = parseInt(mid,16);
-  if (n <= 0x08 && O2_TID[tid]) return O2_TID[tid];
-  if (n >= 0xA1 && n <= 0xAD && tid === 0x0B) return 'Tekleme sayısı (son 10 sürüş ort.)';
-  if (n >= 0xA1 && n <= 0xAD && tid === 0x0C) return 'Tekleme sayısı (son/bu sürüş)';
-  return tid >= 0x80 ? `Üretici testi ${hex2(tid)}` : `Test ${hex2(tid)}`;
-};
 async function readMode6(){
   if (!S.isCAN){ S.m6 = {err:'Bu protokolde Mode 06 desteklenmiyor (sadece CAN)'}; renderMode6(); return; }
   $('#btnM6').disabled = true; $('#m6State').className = 'pill warn'; $('#m6State').textContent = 'Okunuyor';
@@ -1658,13 +1871,7 @@ async function readMode6(){
     for (const mid of [...sup].filter(m => !['00','20','40','60','80','A0','C0','E0'].includes(m)).sort()){
       const r = await cmd('06'+mid, 4000); if (bad(r)) continue;
       const h = frames(r, '46'+mid) || lines(r).find(l => l.startsWith('46'+mid)); if (!h) continue;
-      const body = h.slice(2);
-      for (let i=0;i+18<=body.length;i+=18){
-        const rec = body.substr(i,18); if (rec.slice(0,2) !== mid) break;
-        const tid = parseInt(rec.substr(2,2),16), id = parseInt(rec.substr(4,2),16);
-        const val = uas(id, parseInt(rec.substr(6,4),16)), mn = uas(id, parseInt(rec.substr(10,4),16)), mx = uas(id, parseInt(rec.substr(14,4),16));
-        rows.push({name:`${MID_NAMES(mid)} · ${TID_NAME(mid, tid)}`, val, mn, mx, ok: val.v >= mn.v && val.v <= mx.v});
-      }
+      rows.push(...parseM6(h, mid));
     }
     S.m6 = {rows, t:new Date()};
   } catch (e) { S.m6 = {err:'Okuma başarısız: ' + e.message}; }
@@ -1672,13 +1879,32 @@ async function readMode6(){
 }
 function renderMode6(){
   const m = S.m6, st = $('#m6State');
-  if (!m){ st.className = 'pill'; st.textContent = 'Okunmadı'; $('#m6Rows').innerHTML = `<tr><td colspan="6" class="muted">Testleri oku</td></tr>`; return; }
-  if (m.err){ st.className = 'pill warn'; st.textContent = 'Okunamadı'; $('#m6Rows').innerHTML = `<tr><td colspan="6" class="muted">${m.err}</td></tr>`; return; }
+  $('#m6Mis').hidden = true;
+  if (!m){ st.className = 'pill'; st.textContent = 'Okunmadı'; $('#m6Rows').innerHTML = none('Bağlanınca "Testleri oku" ile al.'); return; }
+  if (m.err){ st.className = 'pill warn'; st.textContent = 'Okunamadı'; $('#m6Rows').innerHTML = none(m.err); return; }
   const fail = m.rows.filter(r => !r.ok).length;
   st.className = 'pill ' + (!m.rows.length ? '' : fail ? 'crit' : 'ok');
   st.textContent = !m.rows.length ? 'Sonuç yok' : fail ? `${fail} test limit dışı` : `${m.rows.length} test, hepsi limitte`;
-  $('#m6Rows').innerHTML = m.rows.length ? m.rows.map(r => `<tr><td>${r.name}</td><td class="r">${NF(r.val.v, r.val.d)}</td><td class="r">${NF(r.mn.v, r.mn.d)}</td><td class="r">${NF(r.mx.v, r.mx.d)}</td><td>${r.val.u}</td><td><span class="pill ${r.ok?'ok':'crit'}">${r.ok?'Geçti':'Kaldı'}</span></td></tr>`).join('')
-    : `<tr><td colspan="6" class="muted">ECU test sonucu bildirmedi</td></tr>`;
+  // Tekleme sayaçları silindir başına tek kutuda: son 10 sürüş ortalaması ve son/bu sürüş
+  const mis = {}, other = [];
+  for (const r of m.rows){
+    const [grp, test] = r.name.split(' · ');
+    if (/^Tekleme/.test(grp) && /Tekleme sayısı/.test(test || '')) (mis[grp] ||= {})[/son 10/.test(test) ? 'avg' : 'cur'] = r.val.v;
+    else other.push(r);
+  }
+  const mk = Object.keys(mis);
+  $('#m6Mis').hidden = !mk.length;
+  $('#m6Mis').innerHTML = mk.map(g => { const x = mis[g], bad = (x.cur || 0) > 0 || (x.avg || 0) > 0;
+    return `<div class="${bad ? 'bad' : ''}"><div class="k">${g.replace('Tekleme silindir', 'Silindir')} tekleme</div><div class="v">${NF(x.cur)} <small>bu sürüş · ort. ${NF(x.avg)}</small></div></div>`; }).join('');
+  $('#m6Rows').innerHTML = other.length ? other.map(m6Row).join('') : mk.length ? '' : none('ECU test sonucu bildirmedi');
+}
+// Geçme aralığı yeşil bant, ölçülen değer dikey çizgi; ölçek aralığın %15 dışına taşar
+function m6Row(r){
+  const lo = r.mn.v, hi = r.mx.v, v = r.val.v, [grp, test] = r.name.split(' · ');
+  const a = Math.min(lo, v), b = Math.max(hi, v), padv = (b - a) * 0.15 || 1, A = a - padv, B = b + padv, P = x => ((x - A) / (B - A) * 100).toFixed(2);
+  return `<div class="m6"><div class="m6-head"><span class="m6-name">${grp}<small>${test || ''}</small></span><span class="pill ${r.ok?'ok':'crit'}">${r.ok?'Geçti':'Kaldı'}</span></div>
+    <div class="range ${r.ok?'':'bad'}"><span class="in" style="left:${P(lo)}%;width:${(P(hi) - P(lo)).toFixed(2)}%"></span><span class="mk" style="left:${P(v)}%"></span></div>
+    <div class="range-lbl"><span>${NF(lo, r.mn.d)}</span><b>${NF(v, r.val.d)} ${r.val.u}</b><span>${NF(hi, r.mx.d)}</span></div></div>`;
 }
 $('#btnM6').addEventListener('click', readMode6);
 
@@ -1803,6 +2029,9 @@ function renderHud(){
   $('#hudBar').style.background = (v.rpm||0) >= G.red ? 'var(--crit)' : 'var(--accent)';
   $('#hudRpm').textContent = v.rpm == null ? '–' : NF(v.rpm) + ' dev/dk';
   $('#hudTemp').textContent = v.coolant == null ? '–' : NF(v.coolant) + ' °C';
+  const top = Object.values(S.alerts).sort((a, b) => (b.level === 'crit') - (a.level === 'crit'))[0];
+  $('#hudAlert').textContent = top ? top.title : (S.shiftN >= 4 ? 'Vites büyüt ↑' : '');
+  $('#hudAlert').style.color = top ? (top.level === 'crit' ? 'var(--crit)' : 'var(--warn)') : 'var(--accent)';
 }
 function applyMirror(){ $('#hudIn').className = 'hud-in ' + MIRROR[mirror][0]; $('#hudMirror').textContent = 'Ayna: ' + MIRROR[mirror][1]; }
 $('#btnHud').addEventListener('click', () => { $('#hud').hidden = false; applyMirror(); renderHud(); $('#hud').requestFullscreen?.().catch(()=>{}); });
@@ -1828,6 +2057,152 @@ function renderInfo(){
   $('#ciTime').textContent = fmtDT(i.time);
 }
 
+/* ---------- bildirim ve uyarılar ---------- */
+let toastT = 0;
+function toast(text, ms = 2600){
+  const t = $('#toast'); t.textContent = text; t.hidden = false;
+  clearTimeout(toastT); toastT = setTimeout(() => { t.hidden = true; }, ms);
+}
+let actx = null;
+function unlockAudio(){ try { actx ||= new (window.AudioContext || window.webkitAudioContext)(); if (actx.state === 'suspended') actx.resume(); } catch {} }
+function beep(level){
+  if (!settings.alSound || !actx) return;
+  const n = level === 'crit' ? 3 : 2, f = level === 'crit' ? 880 : 660;
+  for (let i = 0; i < n; i++){
+    const o = actx.createOscillator(), g = actx.createGain(), t = actx.currentTime + i * 0.28;
+    o.type = 'square'; o.frequency.value = f; o.connect(g); g.connect(actx.destination);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.25, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.2);
+    o.start(t); o.stop(t + 0.22);
+  }
+}
+const ALERT_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>';
+function raiseAlert(id, level, title, sub){
+  if ((S.alertMute[id] || 0) > Date.now()) return;
+  const cur = S.alerts[id];
+  if (cur){ cur.title = title; cur.el.querySelector('b').textContent = title; return; }
+  const el = document.createElement('div');
+  el.className = 'alert ' + (level === 'crit' ? '' : 'warn'); el.setAttribute('role', 'alert');
+  el.innerHTML = `${ALERT_ICON}<span><b></b><small></small></span><button class="x" aria-label="Kapat">×</button>`;
+  el.querySelector('b').textContent = title; el.querySelector('small').textContent = sub || '';
+  el.querySelector('.x').addEventListener('click', () => { S.alertMute[id] = Date.now() + 5*60000; clearAlert(id); });
+  $('#alerts').appendChild(el);
+  S.alerts[id] = {el, level, title};
+  beep(level);
+  if (settings.alVibe) navigator.vibrate?.(level === 'crit' ? [250, 120, 250, 120, 250] : [200, 100, 200]);
+  log('er', 'uyarı: ' + title);
+}
+function clearAlert(id){ S.alerts[id]?.el.remove(); delete S.alerts[id]; }
+// Koşul arka arkaya `need` döngü sürerse uyarı verir, 10 döngü düzelmiş kalırsa kaldırır
+function cond(id, on, need, level, title, sub){
+  const c = S.alertCnt[id] = on ? Math.max(1, (S.alertCnt[id] || 0) + 1) : Math.min(-1, (S.alertCnt[id] || 0) - 1);
+  if (on && c >= need) raiseAlert(id, level, title, sub);
+  else if (!on && c <= -10) clearAlert(id);
+}
+function checkAlerts(){
+  const v = S.values, run = v.rpm > 500;
+  cond('temp', v.coolant != null && v.coolant >= settings.alTemp, 3, 'crit', `Motor suyu yüksek: ${NF(v.coolant)} °C`, 'Güvenli bir yerde dur, motoru rölantide soğut, fanı kontrol et.');
+  cond('charge', run && v.batt != null && v.batt < settings.alVolt, 12, 'warn', `Şarj voltajı düşük: ${NF(v.batt,1)} V`, 'Alternatör veya kayış kontrol edilmeli.');
+  cond('over', v.batt != null && v.batt > 15.2, 6, 'crit', `Aşırı şarj: ${NF(v.batt,1)} V`, 'Konjektör (voltaj regülatörü) arızalı olabilir.');
+  cond('speed', settings.alSpeed > 0 && v.speed > settings.alSpeed, 3, 'warn', `Hız sınırı aşıldı: ${NF(v.speed)} km/sa`, `Sınır ${NF(settings.alSpeed)} km/sa`);
+}
+$('#btnAlertTest').addEventListener('click', () => {
+  unlockAudio(); delete S.alertMute.test;
+  raiseAlert('test', 'crit', 'Deneme uyarısı', 'Sürüşte uyarılar böyle görünür.');
+  setTimeout(() => clearAlert('test'), 6000);
+});
+
+/* ---------- dosya kaydetme / paylaşma ---------- */
+async function saveFile(name, type, text, share){
+  const file = new File([text], name, {type});
+  if (share && navigator.canShare?.({files:[file]})){
+    try { await navigator.share({files:[file], title:name}); return; } catch (e) { if (e.name === 'AbortError') return; }
+  }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+}
+const stamp = d => `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+
+/* ---------- teşhis paketi ---------- */
+function diagText(){
+  const L = [], i = S.info || {}, put = (k, v) => L.push(`${k}: ${v == null || v === '' ? '-' : Array.isArray(v) ? v.join(', ') : v instanceof Date ? v.toISOString() : v}`);
+  L.push('Clio OBD teşhis paketi', `Oluşturma: ${new Date().toISOString()}`, `Tarayıcı: ${navigator.userAgent}`, `Sayfa: ${location.href}`, '');
+  L.push('== Bağlantı ==');
+  put('Mod', S.mode); put('Durum', $('#statusText').textContent); put('Bağlı', S.connected); put('Yeniden bağlanma', S.link);
+  for (const k of ['name','svc','ver','proto','protoN','pids','ecus','vin','calid','cvn','ecuName','time']) put(k, i[k]);
+  put('CAN', S.isCAN);
+  L.push('', '== Desteklenen PID (Mode 01) ==', [...S.supported].sort().join(' ') || '-');
+  L.push('', '== Son değerler ==');
+  for (const [k, v] of Object.entries(S.values)) if (v != null) L.push(`${k} = ${typeof v === 'number' ? +v.toFixed(4) : v}`);
+  for (const [p, v] of Object.entries(S.txt)) L.push(`01${p} (metin) = ${v}`);
+  for (const [p, v] of Object.entries(S.raw)) L.push(`01${p} (ham) = ${v}`);
+  L.push('', '== Arızalar ==');
+  put('Son okuma', S.lastRead); put('Arıza lambası', S.mon ? (S.mon.mil ? 'yanıyor' : 'sönük') : null);
+  put('Kayıtlı', S.dtcStored); put('Bekleyen', S.dtcPending); put('Kalıcı', S.dtcPerm ?? 'desteklenmiyor');
+  put('Hazırlık', S.mon?.items.map(([n, ok]) => `${n}=${ok ? 'tamam' : 'eksik'}`)); put('Freeze frame', S.ff?.code);
+  if (S.m6?.rows) put('Mode 06', S.m6.rows.map(r => `${r.name}: ${r.val.v} [${r.mn.v}..${r.mx.v}] ${r.ok ? 'geçti' : 'KALDI'}`).join(' | '));
+  L.push('', '== Ayarlar ==', JSON.stringify(settings));
+  L.push('', `== Komut günlüğü (${S.diag.length} satır) ==`);
+  for (const [t, k, x] of S.diag) L.push(`${isoLocal(new Date(t))} ${k.padEnd(3)} ${x}`);
+  return L.join('\n');
+}
+$('#btnDiag').addEventListener('click', () => saveFile(`clio-obd-teshis-${stamp(new Date())}.txt`, 'text/plain', diagText(), true));
+
+/* ---------- muayene raporu (yazdır / PDF) ---------- */
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]);
+function reportHtml(){
+  const i = S.info || {}, km = curKm(), {rows, worst} = inspectionRows();
+  const codeRows = (list, kind) => list.map(c => `<tr><td><b>${c}</b></td><td>${esc(describe(c))}</td><td>${kind}</td><td>${SYS[c[0]]}</td></tr>`).join('');
+  const all = codeRows(S.dtcStored, 'Kayıtlı') + codeRows(S.dtcPending, 'Bekleyen') + codeRows(S.dtcPerm || [], 'Kalıcı');
+  const b = battery, bat = [['Dinlenme voltajı', b.rest], ['Marş anı en düşük', b.crank], ['Şarj (yüksüz)', b.ch], ['Şarj (yüklü)', b.chL]].filter(x => x[1]);
+  const m6 = S.m6?.rows || [];
+  return `<h1>Araç ön muayene raporu</h1>
+  <div class="meta">${fmtDT(new Date())} · OBD-II verisinden oluşturuldu</div>
+  <h2>Araç</h2><table>
+    <tr><th>Şasi no (ECU)</th><td>${esc(i.vin || 'ECU bildirmiyor')}</td><th>Kilometre (tahmini)</th><td>${km != null ? NF(km) + ' km' : '–'}</td></tr>
+    <tr><th>Protokol</th><td>${esc(i.proto || '–')}</td><th>ECU</th><td>${esc([i.ecuName, (i.ecus || []).join(', ')].filter(Boolean).join(' · ') || '–')}</td></tr>
+    <tr><th>Yazılım (CALID)</th><td>${esc(i.calid || '–')}</td><th>Kalibrasyon (CVN)</th><td>${esc(i.cvn || '–')}</td></tr>
+    <tr><th>Kodların okunduğu an</th><td>${fmtDT(S.lastRead)}</td><th>OBD standardı</th><td>${esc(S.txt['1C'] || '–')}</td></tr>
+  </table>
+  <div class="verdict">Sonuç: <span class="${worst === 'ok' ? 'okc' : 'bad'}">${INSP_SUM[worst]}</span></div>
+  <h2>Ön kontrol</h2><table>${rows.map(([k, v, c]) => `<tr><td>${k}</td><td>${esc(v)}</td><td class="${c === 'ok' ? 'okc' : 'bad'}">${INSP_LBL[c]}</td></tr>`).join('')}</table>
+  <h2>Arıza kodları</h2>${all ? `<table><tr><th>Kod</th><th>Açıklama</th><th>Tür</th><th>Sistem</th></tr>${all}</table>` : '<p>Kayıtlı, bekleyen veya kalıcı arıza kodu yok.</p>'}
+  <h2>Hazırlık testleri</h2>${S.mon?.items.length ? `<table>${S.mon.items.map(([n, ok]) => `<tr><td>${n}</td><td class="${ok ? 'okc' : 'bad'}">${ok ? 'Tamamlandı' : 'Tamamlanmadı'}</td></tr>`).join('')}</table>` : '<p>ECU hazırlık bilgisi vermedi.</p>'}
+  ${S.ff?.rows.length ? `<h2>Freeze frame · ${S.ff.code}</h2><table>${S.ff.rows.map(([l, v, u, d]) => `<tr><td>${l}</td><td class="r">${typeof v === 'string' ? esc(v) : NF(v, d)} ${u}</td></tr>`).join('')}</table>` : ''}
+  ${m6.length ? `<h2>Bileşen testleri (Mode 06)</h2><table><tr><th>Test</th><th class="r">Değer</th><th class="r">Min</th><th class="r">Maks</th><th>Sonuç</th></tr>${m6.map(r => `<tr><td>${esc(r.name)}</td><td class="r">${NF(r.val.v, r.val.d)} ${r.val.u}</td><td class="r">${NF(r.mn.v, r.mn.d)}</td><td class="r">${NF(r.mx.v, r.mx.d)}</td><td class="${r.ok ? 'okc' : 'bad'}">${r.ok ? 'Geçti' : 'Kaldı'}</td></tr>`).join('')}</table>` : ''}
+  ${bat.length ? `<h2>Akü ve şarj</h2><table>${bat.map(([k, x]) => `<tr><td>${k}</td><td class="r">${NF(x.v, 2)} V</td><td>${esc(x.j?.[1])}</td><td>${fmtDTm(x.t)}</td></tr>`).join('')}</table>` : ''}
+  <p class="meta" style="margin-top:var(--space-4)">Bu rapor aracın OBD-II arayüzünden okunan verilerle hazırlanmıştır, resmi muayene sonucu yerine geçmez. Fren, far, egzoz emisyonu gibi kontroller OBD ile yapılamaz.</p>`;
+}
+$('#btnReport').addEventListener('click', () => {
+  if (!S.lastRead){ toast('Önce kodları oku'); return; }
+  $('#report').innerHTML = reportHtml();
+  window.print();
+});
+
+/* ---------- uygulama (PWA) ---------- */
+let installEvt = null;
+const standalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+function renderApp(){
+  const st = $('#appState'), sw = !!navigator.serviceWorker?.controller;
+  if (standalone()){ st.className = 'pill ok'; st.textContent = 'Kurulu'; }
+  else if (sw){ st.className = 'pill ok'; st.textContent = 'Çevrimdışı hazır'; }
+  else { st.className = 'pill'; st.textContent = 'Tarayıcıda'; }
+  $('#btnInstall').hidden = !installEvt || standalone();
+  $('#appNote').textContent = standalone() ? 'Uygulama olarak açık. Bir kez açıldıktan sonra internetsiz çalışır.'
+    : sw ? 'İnternetsiz çalışmaya hazır. Ana ekrana eklersen tam ekran açılır.'
+    : 'Ana ekrana eklersen tam ekran açılır ve internetsiz çalışır.';
+}
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; renderApp(); });
+window.addEventListener('appinstalled', () => { installEvt = null; renderApp(); toast('Ana ekrana eklendi'); });
+$('#btnInstall').addEventListener('click', async () => { if (!installEvt) return; installEvt.prompt(); await installEvt.userChoice.catch(() => {}); installEvt = null; renderApp(); });
+$('#btnUpdate').addEventListener('click', () => location.reload());
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')){
+  navigator.serviceWorker.register('sw.js').then(() => navigator.serviceWorker.ready).then(renderApp).catch(e => log('er', 'service worker: ' + e.message));
+  navigator.serviceWorker.addEventListener('controllerchange', renderApp);
+  navigator.serviceWorker.addEventListener('message', e => {
+    if (e.data?.type === 'updated'){ $('#btnUpdate').hidden = false; if (!S.connected) toast('Yeni sürüm indirildi, Ayarlar\'dan yükleyebilirsin', 4000); }
+  });
+}
+
 /* ---------- ekran açık kalsın ---------- */
 async function requestWake(){ try { S.wake = await navigator.wakeLock?.request('screen'); } catch {} }
 function releaseWake(){ try { S.wake?.release(); } catch {} S.wake = null; }
@@ -1837,13 +2212,15 @@ window.addEventListener('pagehide', () => { if (S.trip) endTrip(); });
 /* ---------- UI bağlama ---------- */
 const hasBt = !!(navigator.bluetooth && navigator.bluetooth.requestDevice);
 $('#btWarn').hidden = hasBt;
-$('#btnConnect').addEventListener('click', () => { if (S.connected) stop(); else start('ble'); });
+$('#btnConnect').addEventListener('click', () => { if (S.connected){ S.userStop = true; stop(); } else start('ble'); });
 $('#btnDemo').addEventListener('click', () => start('demo'));
 $$('.tab').forEach(t => t.addEventListener('click', () => {
+  const same = t.getAttribute('aria-selected') === 'true';
   $$('.tab').forEach(x => x.setAttribute('aria-selected', x === t));
   for (const id of ['dash','trip','dtc','test','conn']) $('#tab-'+id).hidden = id !== t.dataset.tab;
-  if (t.dataset.tab === 'dash') drawChart();
-  if (t.dataset.tab === 'trip'){ renderTrip(); renderMaint(); }
+  if (!same) window.scrollTo({top:0});
+  if (t.dataset.tab === 'dash') drawChart(true);
+  if (t.dataset.tab === 'trip'){ renderTrip(); renderMaint(); renderTripDetail(); }
   if (t.dataset.tab === 'test' && S.crankSamples) drawLine($('#crankChart'), S.crankSamples, {d:1, ref:9.6});
 }));
 
@@ -1869,6 +2246,20 @@ $('#setOdo').value = settings.odoKm ?? '';
 $('#setProto').value = settings.proto; $('#setUuid').value = settings.uuid;
 $('#setProto').addEventListener('change', e => { settings.proto = e.target.value; saveSettings(); });
 $('#setUuid').addEventListener('change', e => { settings.uuid = e.target.value.trim(); saveSettings(); });
+const bindSw = (id, key) => {
+  const el = $(id); el.checked = !!settings[key];
+  el.addEventListener('change', () => { settings[key] = el.checked; saveSettings(); if (el.checked) unlockAudio(); });
+};
+bindSw('#setAuto', 'autoReconnect'); bindSw('#setAlSound', 'alSound'); bindSw('#setAlVibe', 'alVibe');
+bindSw('#setAlMil', 'alMil'); bindSw('#setShift', 'shiftHint');
+bindNum('#setAlTemp', 'alTemp', 80, 130);
+bindNum('#setAlVolt', 'alVolt', 11, 14.5);
+$('#setAlSpeed').value = settings.alSpeed ?? '';
+$('#setAlSpeed').addEventListener('change', e => {
+  const v = parseNum(e.target.value); settings.alSpeed = v != null && v >= 20 && v <= 250 ? Math.round(v) : null;
+  e.target.value = settings.alSpeed ?? ''; saveSettings();
+});
+$('#btnDemoDrop').addEventListener('click', () => { if (S.mode === 'demo' && S.t && !S.link){ toast('Bağlantı 6 saniyeliğine kesildi'); S.t.drop(6000); } });
 
 $('#termForm').addEventListener('submit', async e => {
   e.preventDefault(); const c = $('#termCmd').value.trim().toUpperCase(); if (!c || !S.connected) return;
@@ -1880,7 +2271,7 @@ $('#btnCopyLog').addEventListener('click', async () => {
   catch { const r = document.createRange(); r.selectNodeContents(term); const s = getSelection(); s.removeAllRanges(); s.addRange(r); }
 });
 
-buildGauge(); recalcCal(); renderDtc(); renderMode6(); renderInfo(); renderTrip(); renderTrips(); renderMaint(); renderBattery(); renderLaunches(); renderFuel(); setControls();
+buildGauge(); recalcCal(); renderDtc(); renderMode6(); renderInfo(); renderTrip(); renderTrips(); renderMaint(); renderBattery(); renderLaunches(); renderFuel(); renderApp(); setControls();
 loadFuel();
 log('sys', hasBt ? 'hazır: Bağlan ile FD10\'u seç' : 'bu tarayıcıda Web Bluetooth yok, demo modu açılıyor');
 if (!hasBt) start('demo');

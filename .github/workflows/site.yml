@@ -28,6 +28,8 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
+      - name: Ayrıştırıcı testleri
+        run: node --test
       - name: Benzin fiyatını güncelle
         run: node scripts/update-fuel.mjs
       - name: fuel.json dosyasını kaydet
