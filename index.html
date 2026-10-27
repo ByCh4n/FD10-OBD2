@@ -172,6 +172,11 @@ h2{display:flex;align-items:center;gap:var(--space-2);font:600 var(--fs-13)/1.2 
 .empty p{margin:0;max-width:60ch;color:var(--color-fg-muted)}
 .steps-list{margin:0;padding:0;list-style:none;display:grid;gap:var(--space-3);counter-reset:s}
 .steps-list li{display:flex;gap:var(--space-3);align-items:flex-start;counter-increment:s}
+.steps-list li > span{flex:1;min-width:0;padding-top:1px}
+.conn-err{display:flex;gap:var(--space-3);align-items:flex-start;width:100%;padding:var(--space-3);border-radius:var(--radius-md);border:1px solid color-mix(in srgb,var(--color-crit) 45%,transparent);background:color-mix(in srgb,var(--color-crit) 10%,transparent);color:var(--color-fg)}
+.conn-err .ico{color:var(--color-crit);margin-top:1px}
+.conn-err b{display:block;font-weight:600;font-size:var(--fs-14)}
+.conn-err small{display:block;color:var(--color-fg-muted);font-size:var(--fs-13);margin-top:2px;line-height:1.45}
 .steps-list li::before{content:counter(s);flex:none;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font:600 var(--fs-13) var(--font-mono);background:var(--color-surface-2);border:1px solid var(--color-divider)}
 
 /* === GÖSTERGE (hero) === */
@@ -330,6 +335,21 @@ input::placeholder{color:var(--color-fg-muted);opacity:.8}
 .btn3 .btn{padding-inline:var(--space-2)}
 
 /* === TESTLER, BAKIM === */
+.tests{display:grid}
+.test{display:grid;gap:var(--space-2);padding:var(--space-3) 0;border-bottom:1px solid var(--color-divider)}
+.test:first-child{padding-top:0}
+.test:last-child{border-bottom:0;padding-bottom:0}
+.test-head{display:flex;align-items:center;gap:var(--space-3)}
+.test-no{flex:none;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font:600 var(--fs-13) var(--font-num);background:var(--color-surface-2);color:var(--color-fg-muted)}
+.test-title{flex:1;min-width:0;line-height:1.3}
+.test-title b{display:block;font-weight:600;font-size:var(--fs-14)}
+.test-title small{display:block;color:var(--color-fg-muted);font-size:var(--fs-12);margin-top:2px}
+.test-res{display:flex;align-items:center;gap:var(--space-2) var(--space-3);flex-wrap:wrap;padding-left:40px;min-height:32px}
+.res-v{font:600 var(--fs-22)/1 var(--font-num);font-variant-numeric:tabular-nums}
+.res-v small{font:500 var(--fs-13) var(--font-sans);color:var(--color-fg-muted);margin-left:2px}
+.res-t{margin-left:auto;font-size:var(--fs-12);color:var(--color-fg-muted);font-variant-numeric:tabular-nums}
+.test > .note,.test > canvas{margin-left:40px;width:calc(100% - 40px)}
+.sub-h{margin:var(--space-4) 0 var(--space-1);font:600 var(--fs-13) var(--font-sans);color:var(--color-fg-muted);text-transform:uppercase;letter-spacing:.06em}
 .steps{display:grid;gap:var(--space-4)}
 .step{display:grid;gap:var(--space-2);padding-top:var(--space-4);border-top:1px solid var(--color-divider)}
 .step:first-child{padding-top:0;border-top:0}
@@ -347,6 +367,7 @@ details.mi > summary b{font-weight:600;font-size:var(--fs-14)}
 details.mi > summary .mi-sum{margin-left:auto;color:var(--color-fg-muted);font:var(--fs-12) var(--font-num);text-align:right;font-variant-numeric:tabular-nums}
 details.mi .mi-body{display:grid;gap:var(--space-3);margin-top:var(--space-3)}
 .timer{font:600 56px/1 var(--font-num);font-variant-numeric:tabular-nums;letter-spacing:-.03em}
+.timer.idle{color:var(--color-fg-muted)}
 .timer small{font:500 var(--fs-16) var(--font-sans);color:var(--color-fg-muted);margin-left:6px;letter-spacing:0}
 
 /* === TERMİNAL === */
@@ -363,13 +384,14 @@ details.mi .mi-body{display:grid;gap:var(--space-3);margin-top:var(--space-3)}
 .hud-in{display:grid;justify-items:center;gap:6px;width:min(92vw,720px)}
 .hud-in.v{transform:scaleY(-1)}
 .hud-in.h{transform:scaleX(-1)}
-.hud-speed{font:600 min(40vw,280px)/.9 var(--font-num);font-variant-numeric:tabular-nums;letter-spacing:-.05em}
+.hud-speed{font:600 min(40vw,42vh,280px)/.9 var(--font-num);font-variant-numeric:tabular-nums;letter-spacing:-.05em}
 .hud-unit{font:600 22px var(--font-sans);color:var(--hud-dim)}
 .hud-bar{width:100%;height:14px;border-radius:7px;background:var(--slate-850);overflow:hidden;margin-top:12px}
 .hud-bar div{height:100%;width:0;background:var(--green-500);transition:width .2s linear}
 .hud-row{display:flex;justify-content:space-between;width:100%;font:600 26px var(--font-num);font-variant-numeric:tabular-nums}
 .hud-alert{font:700 28px/1.2 var(--font-sans);color:var(--red-500);text-align:center;min-height:36px}
 .hud-ctrl{position:fixed;left:max(16px,env(safe-area-inset-left,0px));right:max(16px,env(safe-area-inset-right,0px));bottom:max(16px,env(safe-area-inset-bottom,0px));display:flex;justify-content:space-between;gap:8px}
+@media (max-height:500px) and (orientation:landscape){ .hud-ctrl{top:max(12px,env(safe-area-inset-top,0px));bottom:auto} .hud-row{font-size:22px} .hud-in{gap:2px} }
 .hud-ctrl .btn{--btn-bg:var(--slate-900);--btn-border:var(--slate-700);--btn-fg:var(--slate-50)}
 
 /* === UYARI, BİLDİRİM, VİTES ÖNERİSİ === */
@@ -386,8 +408,8 @@ details.mi .mi-body{display:grid;gap:var(--space-3);margin-top:var(--space-3)}
 .shift{position:absolute;top:var(--space-3);left:var(--space-3);--pill-h:32px;background:var(--color-accent);color:var(--color-on-accent);border-color:var(--color-accent);font-size:var(--fs-13)}
 .mil-on{color:var(--color-crit);font-weight:600}
 
-/* === TELEFON (≤719px): kompakt üst çubuk + alt menü === */
-@media (max-width:719px){
+/* === TELEFON (≤719px veya yatay telefon): kompakt üst çubuk + alt menü === */
+@media (max-width:719px), (max-height:500px) and (orientation:landscape){
   .top .wrap{flex-wrap:nowrap;gap:var(--space-2)}
   .brand span{display:none}
   .status{flex:1;justify-content:flex-start}
@@ -405,7 +427,25 @@ details.mi .mi-body{display:grid;gap:var(--space-3);margin-top:var(--space-3)}
   .card-head .row .btn{flex:1}
   .toast{bottom:calc(var(--nav-h) + var(--space-6) + env(safe-area-inset-bottom,0px))}
 }
-@media (min-width:720px){ .tab svg{display:none} }
+@media (min-width:720px) and (min-height:501px){ .tab svg{display:none} }
+/* Yatay telefon: alt menü tek satır, gösterge ekran yüksekliğine sığar, veri kutuları geniş ızgara */
+@media (max-height:500px) and (orientation:landscape){
+  :root{--nav-h:48px}
+  .top .wrap{min-height:52px;padding-block:6px}
+  .tab{flex-direction:row;gap:6px;font-size:var(--fs-12)}
+  .tab svg{width:var(--icon-md);height:var(--icon-md)}
+  .badge{top:2px;right:auto;left:calc(50% + 4px)}
+  .gauge{display:grid;grid-template-columns:minmax(0,1fr) 184px;gap:var(--space-3);align-items:center;padding-bottom:var(--card-pad)}
+  .gauge svg{max-height:calc(100dvh - 176px)}
+  .gauge .vitals{grid-template-columns:1fr;margin-top:0}
+  .gauge .vital{display:flex;align-items:baseline;gap:6px;padding:var(--space-2) var(--space-3)}
+  .gauge .vital .k{flex:1}
+  .gauge .vital .v{font-size:var(--fs-18)}
+  .gauge .vital .bar{display:none}
+  .gauge .btn{top:var(--space-3);left:var(--space-3);right:auto}
+  .tiles{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+  .metrics{grid-template-columns:repeat(auto-fill,minmax(140px,1fr))}
+}
 
 /* === YAZDIRILABİLİR RAPOR === */
 #report{display:none}
@@ -457,10 +497,14 @@ details.mi .mi-body{display:grid;gap:var(--space-3);margin-top:var(--space-3)}
     <div class="hero-ico"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 17.5a9 9 0 1 1 17 0"/><path d="m12 14 4.5-4.5"/><circle cx="12" cy="14" r="1.6"/></svg></div>
     <h1>Araca bağlan</h1>
     <ol class="steps-list">
-      <li>FD10 adaptörünü direksiyonun altındaki OBD soketine tak.</li>
-      <li>Kontağı aç. Motoru çalıştırman şart değil.</li>
-      <li>Üstteki <b>Bağlan</b> düğmesine bas ve listeden FD10'u seç.</li>
+      <li><span>FD10 adaptörünü direksiyonun altındaki OBD soketine tak.</span></li>
+      <li><span>Kontağı aç. Motoru çalıştırman şart değil.</span></li>
+      <li><span>Üstteki <b>Bağlan</b> düğmesine bas ve listeden FD10'u seç.</span></li>
     </ol>
+    <div class="conn-err" id="connErr" role="alert" hidden>
+      <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+      <div><b id="connErrT"></b><small id="connErrH"></small></div>
+    </div>
     <p class="err" id="btWarn" hidden>Bu tarayıcı Bluetooth'a erişemiyor. Sayfayı Android'de Chrome ile bir https adresinden aç.</p>
     <p>Araç yanında değilken arayüzü demo verisiyle deneyebilirsin.</p>
     <button class="btn" id="btnDemo"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 4 14 8-14 8z"/></svg>Demo verisiyle dene</button>
@@ -527,6 +571,8 @@ details.mi .mi-body{display:grid;gap:var(--space-3);margin-top:var(--space-3)}
       <h2>Bu yolculuk</h2>
       <div class="row"><span class="pill" id="tripState">Bağlantı yok</span><button class="btn" id="btnTripEnd" disabled>Yolculuğu bitir</button></div>
     </div>
+    <p class="note" id="trNone">Bağlandığında yolculuk kendiliğinden başlar. Mesafe, yakıt, tutar ve eko puan burada canlı izlenir.</p>
+    <div id="trBody">
     <div class="metrics">
       <div class="metric"><div class="k">Mesafe</div><div class="v" id="trDist">–</div></div>
       <div class="metric"><div class="k">Süre</div><div class="v" id="trDur">–</div></div>
@@ -541,7 +587,8 @@ details.mi .mi-body{display:grid;gap:var(--space-3);margin-top:var(--space-3)}
       <div class="metric"><div class="k">Rölantide yakıt</div><div class="v" id="trIdleFuel">–</div></div>
       <div class="metric"><div class="k">Sert hızlanma / fren</div><div class="v" id="trHarsh">–</div></div>
     </div>
-    <dl class="kv" style="margin-top:14px"><dt>Başlangıç</dt><dd id="trStart">–</dd></dl>
+    <dl class="kv" style="margin-top:var(--space-3)"><dt>Başlangıç</dt><dd id="trStart">–</dd></dl>
+    </div>
   </div>
 
   <div class="cols">
@@ -700,43 +747,59 @@ details.mi .mi-body{display:grid;gap:var(--space-3);margin-top:var(--space-3)}
 <section class="page" id="tab-test" hidden>
   <div class="cols">
     <div class="card">
-      <h2>Akü ve şarj testi</h2>
-      <div class="steps">
-        <div class="step">
-          <div class="step-head"><b>1. Dinlenme voltajı <span class="muted">motor en az 1 saattir kapalı</span></b><button class="btn" id="btnRest" disabled>Ölç</button></div>
-          <dl class="kv"><dt>Ölçüm</dt><dd id="bRestV">–</dd><dt>Değerlendirme</dt><dd id="bRestJ">–</dd><dt>Zaman</dt><dd id="bRestT">–</dd></dl>
+      <div class="card-head"><h2>Akü ve şarj testi</h2></div>
+      <div class="tests">
+        <div class="test">
+          <div class="test-head">
+            <span class="test-no" aria-hidden="true">1</span>
+            <div class="test-title"><b>Dinlenme voltajı</b><small>Motor en az 1 saattir kapalı olmalı</small></div>
+            <button class="btn sm" id="btnRest" disabled>Ölç</button>
+          </div>
+          <div class="test-res" id="bRest"></div>
         </div>
-        <div class="step">
-          <div class="step-head"><b>2. Marş testi <span class="muted">başlat, sonra motoru çalıştır</span></b><button class="btn" id="btnCrank" disabled>Başlat</button></div>
-          <p class="note" id="bCrankS">–</p>
-          <canvas class="small" id="crankChart"></canvas>
-          <dl class="kv"><dt>En düşük voltaj</dt><dd id="bCrankV">–</dd><dt>Değerlendirme</dt><dd id="bCrankJ">–</dd><dt>Zaman</dt><dd id="bCrankT">–</dd></dl>
+        <div class="test">
+          <div class="test-head">
+            <span class="test-no" aria-hidden="true">2</span>
+            <div class="test-title"><b>Marş testi</b><small>Başlat'a bas, sonra motoru çalıştır</small></div>
+            <button class="btn sm" id="btnCrank" disabled>Başlat</button>
+          </div>
+          <p class="note" id="bCrankS" hidden></p>
+          <canvas class="small" id="crankChart" hidden role="img" aria-label="Marş sırasında akü voltajı"></canvas>
+          <div class="test-res" id="bCrank"></div>
         </div>
-        <div class="step">
-          <div class="step-head"><b>3. Şarj voltajı <span class="muted">motor rölantide</span></b>
-            <div class="row"><button class="btn" id="btnCharge" disabled>Yüksüz ölç</button><button class="btn" id="btnChargeL" disabled>Yüklü ölç</button></div></div>
-          <dl class="kv">
-            <dt>Yüksüz</dt><dd id="bChV">–</dd><dt>Değerlendirme</dt><dd id="bChJ">–</dd>
-            <dt>Yüklü (far, fan, arka cam)</dt><dd id="bChLV">–</dd><dt>Değerlendirme</dt><dd id="bChLJ">–</dd>
-            <dt>Zaman</dt><dd id="bChT">–</dd>
-          </dl>
+        <div class="test">
+          <div class="test-head">
+            <span class="test-no" aria-hidden="true">3</span>
+            <div class="test-title"><b>Şarj voltajı</b><small>Motor rölantide, tüketiciler kapalı</small></div>
+            <button class="btn sm" id="btnCharge" disabled>Ölç</button>
+          </div>
+          <div class="test-res" id="bCh"></div>
+        </div>
+        <div class="test">
+          <div class="test-head">
+            <span class="test-no" aria-hidden="true">4</span>
+            <div class="test-title"><b>Yük altında şarj</b><small>Rölantide far, fan ve arka cam ısıtıcısı açık</small></div>
+            <button class="btn sm" id="btnChargeL" disabled>Ölç</button>
+          </div>
+          <div class="test-res" id="bChL"></div>
         </div>
       </div>
-      <p class="note" style="margin-top:12px">Voltajı adaptör ölçer; multimetreyle 0,1–0,2 V fark çıkabilir.</p>
+      <p class="note" style="margin-top:var(--space-3)">Voltajı adaptör ölçer, multimetreyle 0,1–0,2 V fark çıkabilir.</p>
     </div>
 
     <div class="card">
       <div class="card-head"><h2>0–100 km/sa</h2><button class="btn primary" id="btnLaunch" disabled>Hazırla</button></div>
-      <div class="timer" id="lTime">–<small>sn</small></div>
+      <div class="timer idle" id="lTime">0,00<small>sn</small></div>
       <p class="note" id="lState" style="margin-top:6px">Sadece kapalı ve güvenli bir alanda dene.</p>
-      <dl class="kv" style="margin-top:12px">
+      <dl class="kv" style="margin-top:var(--space-3)">
         <dt>0–50 km/sa</dt><dd id="l50">–</dd>
         <dt>0–100 km/sa</dt><dd id="l100">–</dd>
         <dt>Örnekleme</dt><dd id="lHz">–</dd>
         <dt>Hassasiyet</dt><dd id="lAcc">–</dd>
       </dl>
-      <div class="tbl" style="margin-top:12px"><table>
-        <thead><tr><th>Tarih</th><th class="r">0–50 (sn)</th><th class="r">0–100 (sn)</th><th class="r">Hz</th></tr></thead>
+      <h3 class="sub-h">Geçmiş ölçümler</h3>
+      <div class="tbl"><table>
+        <thead><tr><th>Tarih</th><th class="r">0–50</th><th class="r">0–100</th><th class="r">Hz</th></tr></thead>
         <tbody id="lRows"></tbody>
       </table></div>
     </div>
@@ -746,29 +809,6 @@ details.mi .mi-body{display:grid;gap:var(--space-3);margin-top:var(--space-3)}
 <!-- AYARLAR -->
 <section class="page" id="tab-conn" hidden>
   <div class="cols">
-    <div class="card">
-      <h2>Adaptör ve araç</h2>
-      <dl class="kv">
-        <dt>Cihaz adı</dt><dd id="ciName">–</dd>
-        <dt>BLE servisi</dt><dd id="ciSvc" class="mono">–</dd>
-        <dt>Adaptör</dt><dd id="ciVer">–</dd>
-        <dt>Protokol</dt><dd id="ciProto">–</dd>
-        <dt>Protokol kodu</dt><dd id="ciProtoN" class="mono">–</dd>
-        <dt>Desteklenen PID</dt><dd id="ciPids">–</dd>
-        <dt>Şasi no (ECU)</dt><dd id="ciVin" class="mono">–</dd>
-        <dt>Yanıt veren ECU'lar</dt><dd id="ciEcus">–</dd>
-        <dt>ECU adı</dt><dd id="ciEcuName">–</dd>
-        <dt>Yazılım kimliği (CALID)</dt><dd id="ciCalid" class="mono">–</dd>
-        <dt>Kalibrasyon kodu (CVN)</dt><dd id="ciCvn" class="mono">–</dd>
-        <dt>OBD standardı</dt><dd id="ciObd">–</dd>
-        <dt>Yakıt tipi (ECU)</dt><dd id="ciFuelType">–</dd>
-        <dt>O2 sensörleri</dt><dd id="ciO2">–</dd>
-        <dt>İkincil hava</dt><dd id="ciSecAir">–</dd>
-        <dt>Bağlantı zamanı</dt><dd id="ciTime">–</dd>
-      </dl>
-    </div>
-
-    <div class="side">
       <div class="card">
         <div class="card-head"><h2>Uygulama</h2><span class="pill" id="appState">–</span></div>
         <p class="note" id="appNote">Ana ekrana eklersen tam ekran açılır ve internetsiz çalışır.</p>
@@ -782,7 +822,6 @@ details.mi .mi-body{display:grid;gap:var(--space-3);margin-top:var(--space-3)}
         <label class="sw" for="setAuto"><span>Kopunca otomatik bağlan<small>Yolculuk kaydı devam eder, 2 dakika boyunca denenir</small></span><input type="checkbox" id="setAuto"></label>
         <div class="row" id="demoDropRow" style="margin-top:10px" hidden><button class="btn" id="btnDemoDrop">Kopmayı dene (demo)</button></div>
       </div>
-    </div>
   </div>
 
   <div class="card">
@@ -827,6 +866,29 @@ details.mi .mi-body{display:grid;gap:var(--space-3);margin-top:var(--space-3)}
       </label>
     </div>
   </div>
+
+  <div class="card">
+    <div class="card-head"><h2>Adaptör ve araç</h2><span class="note" id="ciHint">Bağlanınca dolar</span></div>
+    <dl class="kv">
+      <dt>Cihaz adı</dt><dd id="ciName">–</dd>
+      <dt>BLE servisi</dt><dd id="ciSvc" class="mono">–</dd>
+      <dt>Adaptör</dt><dd id="ciVer">–</dd>
+      <dt>Protokol</dt><dd id="ciProto">–</dd>
+      <dt>Protokol kodu</dt><dd id="ciProtoN" class="mono">–</dd>
+      <dt>Desteklenen PID</dt><dd id="ciPids">–</dd>
+      <dt>Şasi no (ECU)</dt><dd id="ciVin" class="mono">–</dd>
+      <dt>Yanıt veren ECU'lar</dt><dd id="ciEcus">–</dd>
+      <dt>ECU adı</dt><dd id="ciEcuName">–</dd>
+      <dt>Yazılım kimliği (CALID)</dt><dd id="ciCalid" class="mono">–</dd>
+      <dt>Kalibrasyon kodu (CVN)</dt><dd id="ciCvn" class="mono">–</dd>
+      <dt>OBD standardı</dt><dd id="ciObd">–</dd>
+      <dt>Yakıt tipi (ECU)</dt><dd id="ciFuelType">–</dd>
+      <dt>O2 sensörleri</dt><dd id="ciO2">–</dd>
+      <dt>İkincil hava</dt><dd id="ciSecAir">–</dd>
+      <dt>Bağlantı zamanı</dt><dd id="ciTime">–</dd>
+    </dl>
+  </div>
+
 
   <div class="card">
     <div class="card-head">
@@ -881,6 +943,13 @@ const toDate = d => d ? (d instanceof Date ? d : new Date(d)) : null;
 const fmtDT = d => { d = toDate(d); return d && !isNaN(d) ? d.toLocaleString('tr-TR',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit'}) : '–'; };
 const fmtDTm = d => { d = toDate(d); return d && !isNaN(d) ? d.toLocaleString('tr-TR',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}) : '–'; };
 const fmtD = d => { d = toDate(d); return d && !isNaN(d) ? d.toLocaleDateString('tr-TR',{year:'numeric',month:'2-digit',day:'2-digit'}) : '–'; };
+// Telefonda kısa zaman: "Bugün 23:10", "Dün 08:15", aksi halde "26.10.2026 08:15"
+const fmtShort = d => {
+  d = toDate(d); if (!d || isNaN(d)) return '–';
+  const hm = d.toLocaleTimeString('tr-TR', {hour:'2-digit', minute:'2-digit'}), day = new Date(); day.setHours(0,0,0,0);
+  const diff = Math.floor((day - new Date(d.getFullYear(), d.getMonth(), d.getDate())) / 864e5);
+  return diff === 0 ? `Bugün ${hm}` : diff === 1 ? `Dün ${hm}` : `${fmtD(d)} ${hm}`;
+};
 const fmtDur = s => { if (s == null) return '–'; s = Math.round(s); const h = Math.floor(s/3600), m = Math.floor(s%3600/60), x = s%60; return h ? `${h} sa ${pad(m)} dk` : `${m} dk ${pad(x)} sn`; };
 const isoLocal = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}.${pad(d.getMilliseconds(),3)}`;
 const vU = (v, d, u) => v == null || !isFinite(v) ? '–' : `${NF(v,d)}<small>${u}</small>`;
@@ -1155,7 +1224,7 @@ function setControls(){
 
 async function start(mode){
   if (S.connected || S.busy) return;
-  S.busy = true; S.mode = mode; S.userStop = false; S.link = null; S.diag = []; setControls();
+  S.busy = true; S.mode = mode; S.userStop = false; S.link = null; S.diag = []; $('#connErr').hidden = true; setControls();
   unlockAudio();
   setStatus(mode==='demo' ? 'Demo başlatılıyor' : 'Cihaz seçiliyor', 'busy');
   try {
@@ -1173,12 +1242,14 @@ async function start(mode){
     poll();
   } catch (e) {
     S.t?.close(); S.t = null; S.connected = false; queue = Promise.resolve();
-    let msg = e.message;
-    if (e.name==='NotFoundError') msg = 'Cihaz seçilmedi';
-    else if (e.name==='SecurityError' || e.name==='NotAllowedError') msg = 'Bluetooth izni alınamadı. Sayfayı Chrome\'da https adresinden aç.';
-    else if (e.code==='NO_CHAR') msg = 'Cihazda ELM327 servisi bulunamadı. nRF Connect\'te gördüğün servis UUID\'sini Ayarlar sekmesine yaz.';
-    else if (e.code==='NO_ECU') msg = 'Adaptör çalışıyor ama araca ulaşamadı. Kontağı aç ve tekrar dene.';
+    // Kısa başlık üst çubukta, ne yapılacağı başlangıç ekranındaki kutuda
+    let msg = e.message, hint = 'Adaptörü çıkarıp tak, kontağı kapatıp aç ve tekrar dene. Sürerse Ayarlar > Teşhis paketi dosyasını gönder.';
+    if (e.name==='NotFoundError'){ msg = 'Cihaz seçilmedi'; hint = 'Listede FD10 görünmüyorsa Bluetooth ve konumun açık, YMOBD uygulamasının kapalı olduğundan emin ol.'; }
+    else if (e.name==='SecurityError' || e.name==='NotAllowedError'){ msg = 'Bluetooth izni alınamadı'; hint = 'Sayfayı Chrome\'da https adresinden aç ve Bluetooth iznini ver.'; }
+    else if (e.code==='NO_CHAR'){ msg = 'Cihazda ELM327 servisi bulunamadı'; hint = 'nRF Connect\'te gördüğün servis UUID\'sini Ayarlar > Araç ve adaptör ayarları\'na yaz, ya da Teşhis paketini gönder.'; }
+    else if (e.code==='NO_ECU'){ msg = 'Adaptör araca ulaşamadı'; hint = 'Kontağı aç (motor çalışmasa da olur) ve tekrar dene.'; }
     log('er', msg); setStatus(msg, 'err');
+    $('#connErrT').textContent = msg; $('#connErrH').textContent = hint; $('#connErr').hidden = false;
   } finally { S.busy = false; setControls(); renderTrip(); }
 }
 
@@ -1233,7 +1304,11 @@ function stop(reason){
   S.t?.close(); S.t = null; queue = Promise.resolve(); S.pause = 0;
   releaseWake();
   setStatus(reason || 'Bağlı değil', reason ? 'err' : '');
-  if (reason) log('er', reason);
+  if (reason){
+    log('er', reason);
+    $('#connErrT').textContent = reason; $('#connErrH').textContent = 'Adaptör takılı ve kontak açıksa Bağlan ile yeniden bağlanabilirsin. Yolculuğun buraya kadarki kısmı kaydedildi.';
+    $('#connErr').hidden = false;
+  } else $('#connErr').hidden = true;
   setControls(); renderTrip();
 }
 function onLinkLost(){
@@ -1411,7 +1486,8 @@ function renderTrip(){
   $('#trIdle').textContent = T ? fmtDur(T.idle) : '–';
   const lvl = S.values.fuel;
   $('#trRange').innerHTML = S.connected && lvl != null ? vU(lvl/100*settings.tank/settings.realAvg*100,0,'km') : '–';
-  $('#trStart').textContent = T ? fmtDT(T.start) : '–';
+  $('#trStart').textContent = T ? fmtShort(T.start) : '–';
+  $('#trBody').hidden = !T; $('#trNone').hidden = !!T;
   const sc = ecoScore(T);
   $('#trScore').innerHTML = sc != null ? `<span style="color:var(--${scoreCls(sc)})">${sc}</span><small>/100</small>` : '–';
   $('#trIdleFuel').innerHTML = T ? vU(T.idleFuel,2,'L') : '–';
@@ -1672,7 +1748,9 @@ function drawLine(cv, data, opts){
   const L = 44, R = 8, T = 8, B = 18, pw = W-L-R, ph = H-T-B;
   const X = i => L + pw * i / (n-1), Y = val => T + ph * (1 - (val-lo)/(hi-lo));
   cx.font = `11px ${css('--f-display')}`; cx.fillStyle = css('--muted'); cx.strokeStyle = css('--line'); cx.lineWidth = 1;
-  for (let i=0;i<=3;i++){ const val = lo + (hi-lo)*i/3, y = Y(val); cx.beginPath(); cx.moveTo(L,y); cx.lineTo(W-R,y); cx.stroke(); cx.textAlign='right'; cx.textBaseline='middle'; cx.fillText(NF(val, opts.d), L-6, y); }
+  // Eksen etiketleri birbirinden ayırt edilebilsin diye ondalık hane, adım aralığına göre artırılır
+  let dd = opts.d || 0; while (dd < 3 && (hi-lo)/3 < 1.5 * 10 ** -dd) dd++;
+  for (let i=0;i<=3;i++){ const val = lo + (hi-lo)*i/3, y = Y(val); cx.beginPath(); cx.moveTo(L,y); cx.lineTo(W-R,y); cx.stroke(); cx.textAlign='right'; cx.textBaseline='middle'; cx.fillText(NF(val, dd), L-6, y); }
   if (opts.ref != null && opts.ref > lo && opts.ref < hi){ cx.save(); cx.setLineDash([4,4]); cx.strokeStyle = css('--crit'); cx.beginPath(); cx.moveTo(L, Y(opts.ref)); cx.lineTo(W-R, Y(opts.ref)); cx.stroke(); cx.restore(); }
   const off = n - data.length, acc = css('--color-accent-strong');
   const path = new Path2D(); data.forEach((val,i)=>{ const x=X(i+off), y=Y(val); i?path.lineTo(x,y):path.moveTo(x,y); });
@@ -1714,7 +1792,7 @@ function renderFresh(){
   $('#dash').classList.toggle('stale-data', stale);
 }
 setInterval(renderFresh, 1000);
-window.addEventListener('resize', () => { drawChart(true); if (S.crankSamples) drawLine($('#crankChart'), S.crankSamples, {d:1, ref:9.6}); });
+window.addEventListener('resize', () => { drawChart(true); drawCrank(); });
 
 /* ---------- CSV kaydı ---------- */
 function record(){
@@ -1806,7 +1884,7 @@ function renderDtc(){
   $('#kvMil').textContent = milTxt; $('#kvMil').className = mon?.mil ? 'mil-on' : '';
   $('#sumStored').textContent = read ? S.dtcStored.length : '–';
   $('#sumPending').textContent = read ? S.dtcPending.length : '–';
-  $('#sumTime').textContent = read ? 'Son okuma ' + fmtDTm(S.lastRead) : 'Okunmadı';
+  $('#sumTime').textContent = read ? fmtShort(S.lastRead) : (S.connected ? 'Okunmadı' : 'Bağlanınca okunur');
   $('#listStored').innerHTML = read ? dtcCards(S.dtcStored, 'crit') : nr;
   $('#listPending').innerHTML = read ? dtcCards(S.dtcPending, 'warn') : nr;
   $('#sumPerm').textContent = read ? (S.dtcPerm ? S.dtcPerm.length : 'yok') : '–';
@@ -1815,7 +1893,7 @@ function renderDtc(){
     ? mon.items.map(([n,ok]) => li(n, null, `<span class="pill ${ok?'ok':'warn'}">${ok?'Tamamlandı':'Tamamlanmadı'}</span>`)).join('')
     : read ? none('ECU hazırlık bilgisi vermedi') : nr;
   const ff = S.ff;
-  $('#ffCode').textContent = ff?.code || '–';
+  $('#ffCode').textContent = ff?.code || ''; $('#ffCode').hidden = !ff?.code;
   $('#ffRows').innerHTML = !read ? nr : ff && ff.rows.length
     ? ff.rows.map(([l,v,u,d]) => li(l, null, `<span class="num" style="text-align:right">${typeof v === 'string' ? v : NF(v,d)} <span class="muted">${u}</span></span>`)).join('')
     : none('Kayıtlı freeze frame yok');
@@ -1914,25 +1992,34 @@ async function measureV(n){
   for (let i=0;i<n;i++){ const v = parseVolt(await cmd('ATRV', 2000)); if (v != null) vals.push(v); }
   return vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : null;
 }
-const judge = (el, cls, txt) => { el.innerHTML = `<span class="pill ${cls}">${txt}</span>`; };
 async function withTest(fn){
   S.bTest = true; S.pause++; setControls();
   try { await sleep(150); await fn(); }
   catch (e) { log('er', 'test hatası: ' + e.message); }
   finally { S.pause = Math.max(0, S.pause-1); S.bTest = false; setControls(); store.set('clio-obd-battery', battery); }
 }
+// Ölçüm koşulu sağlanmadığında (ör. motor çalışıyor) sonucun yerine geçici bir uyarı gösterilir
+const testMsg = {};
+function warnTest(key, text){ testMsg[key] = text; renderBattery(); }
+const BAT_EL = {rest:'#bRest', crank:'#bCrank', ch:'#bCh', chL:'#bChL'};
 function renderBattery(){
-  const b = battery, J = (el, j) => j ? judge(el, j[0], j[1]) : (el.textContent = '–');
-  $('#bRestV').textContent = b.rest ? NF(b.rest.v,2) + ' V' : '–'; J($('#bRestJ'), b.rest?.j); $('#bRestT').textContent = fmtDT(b.rest?.t);
-  $('#bCrankV').textContent = b.crank ? NF(b.crank.v,2) + ' V' : '–'; J($('#bCrankJ'), b.crank?.j); $('#bCrankT').textContent = fmtDT(b.crank?.t);
-  $('#bChV').textContent = b.ch ? NF(b.ch.v,2) + ' V' : '–'; J($('#bChJ'), b.ch?.j);
-  $('#bChLV').textContent = b.chL ? NF(b.chL.v,2) + ' V' : '–'; J($('#bChLJ'), b.chL?.j);
-  $('#bChT').textContent = fmtDT(b.chL?.t > (b.ch?.t||'') ? b.chL?.t : b.ch?.t);
+  for (const [k, sel] of Object.entries(BAT_EL)){
+    const r = battery[k], msg = testMsg[k];
+    $(sel).innerHTML = msg ? `<span class="pill warn">${msg}</span>`
+      : r ? `<span class="res-v">${NF(r.v, 2)}<small>V</small></span><span class="pill ${r.j[0]}">${r.j[1]}</span><span class="res-t">${fmtShort(r.t)}</span>`
+      : `<span class="note">Henüz ölçülmedi</span>`;
+  }
+}
+const CRANK_OPTS = {d:1, lo:8, hi:15, ref:9.6};
+function drawCrank(){
+  const s = S.crankSamples, cv = $('#crankChart');
+  cv.hidden = !(s && s.length > 1); if (!cv.hidden) drawLine(cv, s, CRANK_OPTS);
 }
 $('#btnRest').addEventListener('click', () => withTest(async () => {
   if (S.mode === 'demo') S.t.setEngine(false);
   const rpm = S.supported.has('0C') ? await readPid('0C', false) : 0;
-  if (rpm > 300){ judge($('#bRestJ'), 'warn', 'Motor çalışıyor, kapatıp tekrar ölç'); return; }
+  if (rpm > 300){ warnTest('rest', 'Motor çalışıyor, kapatıp tekrar ölç'); return; }
+  delete testMsg.rest;
   const v = await measureV(5); if (v == null) throw new Error('voltaj okunamadı');
   const j = v >= 12.6 ? ['ok','Dolu'] : v >= 12.4 ? ['ok','İyi, yaklaşık %75'] : v >= 12.2 ? ['warn','Yarı dolu'] : ['crit','Zayıf, şarj et'];
   battery.rest = {v, j, t:new Date().toISOString()}; renderBattery();
@@ -1942,8 +2029,9 @@ $('#btnCrank').addEventListener('click', () => {
   withTest(async () => {
     const C = S.crank = {state:'wait', min:99, samples:[]}; S.crankSamples = C.samples;
     $('#btnCrank').textContent = 'İptal'; setControls();
+    $('#bCrankS').hidden = false; $('#bCrankS').textContent = 'Kontrol ediliyor…';
     const rpm = S.supported.has('0C') ? await readPid('0C', false) : 0;
-    if (rpm > 300){ $('#bCrankS').textContent = 'Motor çalışıyor. Önce motoru kapat.'; S.crank = null; return; }
+    if (rpm > 300){ $('#bCrankS').textContent = 'Motor çalışıyor. Önce motoru kapat.'; S.crank = null; $('#btnCrank').textContent = 'Başlat'; return; }
     if (S.mode === 'demo'){ S.t.setEngine(false); S.t.scheduleStart(2500); }
     $('#bCrankS').textContent = 'Hazır. Motoru şimdi çalıştır.';
     const t0 = performance.now(); let base = null, cranked = false;
@@ -1954,7 +2042,7 @@ $('#btnCrank').addEventListener('click', () => {
       if (base != null && v < base - 0.8){ if (!cranked) $('#bCrankS').textContent = 'Marş algılandı, ölçülüyor.'; cranked = true; }
       if (cranked) C.min = Math.min(C.min, v);
       if (cranked && v >= 13.0){ C.state = 'done'; }
-      drawLine($('#crankChart'), C.samples, {d:1, ref:9.6});
+      drawCrank();
     }
     if (C.state === 'done'){
       const j = C.min >= 10.0 ? ['ok','İyi'] : C.min >= 9.6 ? ['warn','Sınırda'] : ['crit','Zayıf, akü değişebilir'];
@@ -1966,8 +2054,9 @@ $('#btnCrank').addEventListener('click', () => {
 });
 async function chargeTest(loaded){
   const rpm = S.supported.has('0C') ? await readPid('0C', false) : 1000;
-  const el = loaded ? $('#bChLJ') : $('#bChJ');
-  if (!(rpm > 400)){ judge(el, 'warn', 'Motor çalışmıyor'); return; }
+  const key = loaded ? 'chL' : 'ch';
+  if (!(rpm > 400)){ warnTest(key, 'Motor çalışmıyor, rölantide ölç'); return; }
+  delete testMsg[key];
   const v = await measureV(5); if (v == null) throw new Error('voltaj okunamadı');
   let j;
   if (!loaded) j = v > 14.8 ? ['crit','Aşırı şarj'] : v >= 13.5 ? ['ok','Normal'] : v >= 13.2 ? ['warn','Düşük'] : ['crit','Şarj etmiyor'];
@@ -1979,14 +2068,14 @@ $('#btnChargeL').addEventListener('click', () => withTest(() => chargeTest(true)
 
 /* ---------- 0–100 ---------- */
 function renderLaunches(){
-  $('#lRows').innerHTML = launches.length ? launches.map(r => `<tr><td>${fmtDTm(r.t)}</td><td class="r">${NF(r.t50,2)}</td><td class="r">${NF(r.t100,2)}</td><td class="r">${NF(r.hz,1)}</td></tr>`).join('')
-    : `<tr><td colspan="4" class="muted">Henüz ölçüm yok</td></tr>`;
+  $('#lRows').innerHTML = launches.length ? launches.map(r => `<tr><td>${fmtShort(r.t)}</td><td class="r">${NF(r.t50,2)}</td><td class="r">${NF(r.t100,2)}</td><td class="r">${NF(r.hz,1)}</td></tr>`).join('')
+    : `<tr><td colspan="4" class="muted">Henüz ölçüm yok. Ölçümler saniye cinsinden.</td></tr>`;
 }
 $('#btnLaunch').addEventListener('click', async () => {
   if (S.launch){ S.launch.state = 'cancel'; return; }
   const L = S.launch = {state:'arm', t50:null, t100:null}; S.pause++;
   $('#btnLaunch').textContent = 'İptal'; setControls();
-  $('#lTime').innerHTML = '0,00<small>sn</small>'; $('#l50').textContent = $('#l100').textContent = $('#lHz').textContent = $('#lAcc').textContent = '–';
+  $('#lTime').innerHTML = '0,00<small>sn</small>'; $('#lTime').classList.remove('idle'); $('#l50').textContent = $('#l100').textContent = $('#lHz').textContent = $('#lAcc').textContent = '–';
   if (S.mode === 'demo'){ S.t.setEngine(true); S.t.launchAt = performance.now() + 2500; }
   let prev = null, lastZero = null, tStart = null, n = 0, tFirst = null;
   const cross = (target, a, b) => a[1] + (target - a[0]) / (b[0] - a[0]) * (b[1] - a[1]);
@@ -2045,6 +2134,7 @@ function renderInfo(){
   $('#ciProto').textContent = i.proto || '–'; $('#ciProtoN').textContent = i.protoN || '–';
   $('#ciPids').textContent = i.pids != null ? i.pids : '–';
   const nb = v => i.time ? (v || 'ECU bildirmiyor') : '–';
+  $('#ciHint').hidden = !!i.time;
   $('#ciVin').textContent = nb(i.vin);
   $('#ciEcus').textContent = nb(i.ecus && i.ecus.join(', '));
   $('#ciEcuName').textContent = nb(i.ecuName);
@@ -2221,7 +2311,7 @@ $$('.tab').forEach(t => t.addEventListener('click', () => {
   if (!same) window.scrollTo({top:0});
   if (t.dataset.tab === 'dash') drawChart(true);
   if (t.dataset.tab === 'trip'){ renderTrip(); renderMaint(); renderTripDetail(); }
-  if (t.dataset.tab === 'test' && S.crankSamples) drawLine($('#crankChart'), S.crankSamples, {d:1, ref:9.6});
+  if (t.dataset.tab === 'test') drawCrank();
 }));
 
 const bindNum = (id, key, min, max, after) => {
