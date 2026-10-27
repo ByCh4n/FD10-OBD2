@@ -1,0 +1,1530 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Clio OBD Paneli</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="theme-color" content="#101317">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Semi+Condensed:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: kokpit gibi tek sütun — üstte durum çubuğu ve sekmeler; her sekme kendi kartlarını alt alta dizer, geniş ekranda iki sütuna açılır */
+:root{
+  --bg:#101317; --surface:#181c21; --surface-2:#1f242a; --line:#2a3037;
+  --fg:#e7eaed; --muted:#8b949d; --accent:#f0a23a; --accent-ink:#1a1206;
+  --ok:#4fc38c; --warn:#e9b53b; --crit:#ef5b50;
+  --hud-bg:#000000; --hud-fg:#f4f7f5; --hud-dim:#7d8a83;
+  --f-display:"Saira Semi Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+  color-scheme:dark;
+}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){
+    --bg:#eef0f2; --surface:#ffffff; --surface-2:#f5f6f7; --line:#d8dce0;
+    --fg:#14181c; --muted:#5d6670; --accent:#b4650a; --accent-ink:#ffffff;
+    --ok:#1f8a58; --warn:#a57600; --crit:#c8372d; color-scheme:light;
+  }
+}
+:root[data-theme="light"]{
+  --bg:#eef0f2; --surface:#ffffff; --surface-2:#f5f6f7; --line:#d8dce0;
+  --fg:#14181c; --muted:#5d6670; --accent:#b4650a; --accent-ink:#ffffff;
+  --ok:#1f8a58; --warn:#a57600; --crit:#c8372d; color-scheme:light;
+}
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{background:var(--bg)}
+body{margin:0;color:var(--fg);font:15px/1.45 var(--f-body);-webkit-text-size-adjust:100%}
+button,input,select{font:inherit;color:inherit}
+.wrap{max-width:1040px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+.top .wrap{display:flex;align-items:center;gap:12px;padding-block:10px 0;flex-wrap:wrap}
+.brand{font:700 20px/1 var(--f-display);letter-spacing:.02em;margin-right:auto}
+.status{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);min-width:0}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--muted);flex:none}
+.dot.on{background:var(--ok);box-shadow:0 0 0 3px color-mix(in srgb,var(--ok) 25%,transparent)}
+.dot.busy{background:var(--warn)}
+.dot.err{background:var(--crit)}
+.btn{border:1px solid var(--line);background:var(--surface-2);border-radius:8px;padding:8px 14px;cursor:pointer;font-weight:500;white-space:nowrap}
+.btn:hover{border-color:var(--muted)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+.btn.danger{border-color:color-mix(in srgb,var(--crit) 60%,var(--line));color:var(--crit)}
+.btn.sm{padding:5px 10px;font-size:13px}
+.btn:focus-visible,.tab:focus-visible,.tile:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+nav.tabs{display:flex;gap:2px;width:100%;overflow-x:auto;scrollbar-width:none}
+.tab{flex:1;border:0;background:none;padding:10px 6px;border-bottom:2px solid transparent;color:var(--muted);font-weight:600;cursor:pointer;white-space:nowrap;font-size:14px}
+.tab[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--accent)}
+
+main .wrap{padding-block:16px 40px}
+.page{display:grid;gap:16px}
+.cols{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr));align-items:start}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;min-width:0}
+.card-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+h2{font:600 13px/1.2 var(--f-body);text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0}
+.card > h2{margin-bottom:12px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.muted{color:var(--muted)}
+.mono{font-family:var(--f-mono)}
+.num{font-variant-numeric:tabular-nums}
+.note{margin:0;font-size:13px;color:var(--muted)}
+.err{color:var(--crit);font-size:14px;margin:0}
+
+.empty{display:grid;gap:12px;justify-items:start}
+.empty p{margin:0;max-width:60ch}
+
+.cluster{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:16px}
+@media (max-width:680px){.cluster{grid-template-columns:1fr}}
+.gauge{position:relative}
+.gauge .btn{position:absolute;top:12px;right:12px}
+.gauge svg{width:100%;max-width:420px;display:block;margin:0 auto}
+.g-track{fill:none;stroke:var(--surface-2);stroke-width:14}
+.g-red{fill:none;stroke:color-mix(in srgb,var(--crit) 55%,transparent);stroke-width:14}
+.g-val{fill:none;stroke:var(--accent);stroke-width:14;transition:stroke-dasharray .25s linear}
+.g-val.red{stroke:var(--crit)}
+.g-tick{stroke:var(--muted);stroke-width:1.5}
+.g-lbl{fill:var(--muted);font:600 11px var(--f-display);text-anchor:middle;dominant-baseline:middle}
+.g-speed{fill:var(--fg);font:700 54px var(--f-display);text-anchor:middle;font-variant-numeric:tabular-nums}
+.g-unit{fill:var(--muted);font:500 12px var(--f-body);text-anchor:middle}
+.g-rpm{fill:var(--fg);font:600 17px var(--f-display);text-anchor:middle;font-variant-numeric:tabular-nums}
+.side{display:grid;gap:16px;align-content:start}
+.big{font:700 40px/1 var(--f-display);font-variant-numeric:tabular-nums}
+.big small{font:500 14px var(--f-body);color:var(--muted);margin-left:4px}
+.bar{position:relative;height:12px;border-radius:6px;background:var(--surface-2);margin-top:12px;overflow:hidden}
+.bar .band{position:absolute;top:0;bottom:0;background:color-mix(in srgb,var(--ok) 22%,transparent)}
+.bar .fill{position:absolute;left:0;top:0;bottom:0;background:var(--accent);transition:width .3s}
+.scale{display:flex;justify-content:space-between;font:12px var(--f-display);color:var(--muted);margin-top:6px}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 9px;border-radius:999px;border:1px solid var(--line);background:var(--surface-2);white-space:nowrap}
+.pill.ok{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 45%,var(--line))}
+.pill.warn{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 45%,var(--line))}
+.pill.crit{color:var(--crit);border-color:color-mix(in srgb,var(--crit) 45%,var(--line))}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:14px;margin:0}
+.kv dt{color:var(--muted)}
+.kv dd{margin:0;text-align:right;font-variant-numeric:tabular-nums;min-width:0;overflow-wrap:anywhere}
+
+.chart-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:8px}
+.chart-head h3{margin:0;font:600 18px var(--f-display)}
+.stats{display:flex;gap:16px;font-size:13px;color:var(--muted);flex-wrap:wrap}
+.stats b{color:var(--fg);font-weight:600;font-variant-numeric:tabular-nums}
+canvas{width:100%;height:150px;display:block}
+canvas.small{height:110px}
+
+.group{display:grid;gap:8px}
+.group + .group{margin-top:18px}
+.group h4{margin:0;font:600 12px var(--f-body);color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.tile{text-align:left;border:1px solid var(--line);background:var(--surface-2);border-radius:10px;padding:10px 12px;cursor:pointer;display:grid;gap:2px;min-width:0}
+.tile[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.tile .l{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile .v{font:700 24px/1.1 var(--f-display);font-variant-numeric:tabular-nums}
+.tile .u{font-size:12px;color:var(--muted)}
+.tile .pill{padding:0 7px;font-size:11px}
+.tile .v.na{color:var(--muted);font-weight:400}
+
+.metrics{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px 16px}
+.metric .k{font-size:12px;color:var(--muted)}
+.metric .v{font:700 22px/1.2 var(--f-display);font-variant-numeric:tabular-nums}
+.metric .v small{font:500 12px var(--f-body);color:var(--muted);margin-left:3px}
+
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:left;font-weight:600;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+td.r,th.r{text-align:right;font-variant-numeric:tabular-nums}
+tr:last-child td{border-bottom:0}
+.tbl{overflow-x:auto}
+.code{font:600 15px var(--f-mono);white-space:nowrap}
+.confirm{border:1px solid color-mix(in srgb,var(--crit) 50%,var(--line));border-radius:10px;padding:14px;display:grid;gap:10px;background:color-mix(in srgb,var(--crit) 7%,var(--surface))}
+.confirm p{margin:0}
+
+.form{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+label.f{display:grid;gap:4px;font-size:13px;color:var(--muted);min-width:0}
+input,select{background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%;min-width:0}
+.check{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--muted)}
+.check input{width:auto}
+
+.steps{display:grid;gap:14px}
+.step{display:grid;gap:8px;padding-top:14px;border-top:1px solid var(--line)}
+.step:first-child{padding-top:0;border-top:0}
+.step-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.step-head b{font-weight:600}
+.step-head .muted{font-weight:400;font-size:13px}
+
+.maint{display:grid;gap:12px}
+.mi{border:1px solid var(--line);border-radius:10px;padding:12px;display:grid;gap:10px;background:var(--surface-2)}
+.mi .form{grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}
+.mi input{background:var(--surface)}
+
+.timer{font:700 56px/1 var(--f-display);font-variant-numeric:tabular-nums}
+.timer small{font:500 16px var(--f-body);color:var(--muted);margin-left:6px}
+
+.term{background:var(--bg);border:1px solid var(--line);border-radius:8px;height:260px;overflow:auto;padding:8px 10px;font:12px/1.5 var(--f-mono);white-space:pre-wrap;overflow-wrap:anywhere;margin:0}
+.term .tx{color:var(--accent)}
+.term .rx{color:var(--fg)}
+.term .sys{color:var(--muted)}
+.term .er{color:var(--crit)}
+.term-in{display:flex;gap:8px;margin-top:8px}
+.term-in input{flex:1;font-family:var(--f-mono)}
+
+.hud{position:fixed;inset:0;z-index:50;background:var(--hud-bg);color:var(--hud-fg);display:grid;place-items:center;padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.hud-in{display:grid;justify-items:center;gap:6px;width:min(92vw,720px)}
+.hud-in.v{transform:scaleY(-1)}
+.hud-in.h{transform:scaleX(-1)}
+.hud-speed{font:700 min(42vw,300px)/.9 var(--f-display);font-variant-numeric:tabular-nums}
+.hud-unit{font:600 22px var(--f-body);color:var(--hud-dim)}
+.hud-bar{width:100%;height:14px;border-radius:7px;background:#1b1f1d;overflow:hidden;margin-top:12px}
+.hud-bar div{height:100%;width:0;background:var(--accent);transition:width .2s linear}
+.hud-row{display:flex;justify-content:space-between;width:100%;font:600 26px var(--f-display);font-variant-numeric:tabular-nums}
+.hud-ctrl{position:fixed;left:max(16px,env(safe-area-inset-left,0px));right:max(16px,env(safe-area-inset-right,0px));bottom:max(16px,env(safe-area-inset-bottom,0px));display:flex;justify-content:space-between;gap:8px}
+.hud-ctrl .btn{background:#151816;border-color:#2b302d;color:var(--hud-fg)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="brand">Clio OBD</div>
+    <div class="status" aria-live="polite"><span class="dot" id="dot"></span><span id="statusText">Bağlı değil</span></div>
+    <button class="btn primary" id="btnConnect">Bağlan</button>
+    <nav class="tabs" role="tablist">
+      <button class="tab" role="tab" aria-selected="true" data-tab="dash">Gösterge</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="trip">Yolculuk</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="dtc">Arızalar</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="test">Testler</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="conn">Ayarlar</button>
+    </nav>
+  </div>
+</header>
+
+<main><div class="wrap">
+
+<!-- GÖSTERGE -->
+<section class="page" id="tab-dash">
+  <div class="card empty" id="dashEmpty">
+    <h2>Bağlantı yok</h2>
+    <p>Adaptörü OBD soketine tak, kontağı aç, sonra üstteki Bağlan'a bas. Araç yanında değilken arayüzü demo verisiyle deneyebilirsin.</p>
+    <p class="err" id="btWarn" hidden>Bu tarayıcı Bluetooth'a erişemiyor. Sayfayı Android'de Chrome ile bir https adresinden aç.</p>
+    <button class="btn" id="btnDemo">Demo verisiyle dene</button>
+  </div>
+
+  <div class="page" id="dash" hidden>
+    <div class="cluster">
+      <div class="card gauge">
+        <button class="btn sm" id="btnHud">HUD</button>
+        <svg viewBox="0 0 240 190" id="rpmGauge" role="img" aria-label="Devir ve hız göstergesi"></svg>
+      </div>
+      <div class="side">
+        <div class="card">
+          <div class="card-head"><h2>Motor suyu</h2><span class="pill" id="tempPill">–</span></div>
+          <div class="big" id="tempVal">–<small>°C</small></div>
+          <div class="bar"><div class="band" style="left:50%;width:25%"></div><div class="fill" id="tempFill" style="width:0"></div></div>
+          <div class="scale"><span>40</span><span>80</span><span>100</span><span>120</span></div>
+        </div>
+        <div class="card">
+          <h2>Durum</h2>
+          <dl class="kv">
+            <dt>Akü</dt><dd id="kvBatt">–</dd>
+            <dt>Arıza lambası</dt><dd id="kvMil">–</dd>
+            <dt>Bakım</dt><dd id="kvMaint">–</dd>
+            <dt>İstek hızı</dt><dd id="kvRate">–</dd>
+          </dl>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="chart-head">
+        <h3 id="chartTitle">Devir</h3>
+        <div class="stats"><span>Min <b id="stMin">–</b></span><span>Maks <b id="stMax">–</b></span><span>Ort <b id="stAvg">–</b></span></div>
+      </div>
+      <canvas id="chart"></canvas>
+    </div>
+
+    <div class="card" id="tilesCard"></div>
+
+    <div class="card">
+      <div class="card-head">
+        <h2>Sürüş kaydı (CSV)</h2>
+        <div class="row"><button class="btn" id="btnRec">Kaydı başlat</button><button class="btn" id="btnCsv" disabled>CSV indir</button></div>
+      </div>
+      <dl class="kv"><dt>Başlangıç</dt><dd id="recStart">–</dd><dt>Satır</dt><dd id="recRows">0</dd></dl>
+    </div>
+  </div>
+</section>
+
+<!-- YOLCULUK -->
+<section class="page" id="tab-trip" hidden>
+  <div class="card">
+    <div class="card-head">
+      <h2>Bu yolculuk</h2>
+      <div class="row"><span class="pill" id="tripState">Bağlantı yok</span><button class="btn" id="btnTripEnd" disabled>Yolculuğu bitir</button></div>
+    </div>
+    <div class="metrics">
+      <div class="metric"><div class="k">Mesafe</div><div class="v" id="trDist">–</div></div>
+      <div class="metric"><div class="k">Süre</div><div class="v" id="trDur">–</div></div>
+      <div class="metric"><div class="k">Yakıt</div><div class="v" id="trFuel">–</div></div>
+      <div class="metric"><div class="k">Ortalama</div><div class="v" id="trAvg">–</div></div>
+      <div class="metric"><div class="k">Tutar</div><div class="v" id="trCost">–</div></div>
+      <div class="metric"><div class="k">Ortalama hız</div><div class="v" id="trSpd">–</div></div>
+      <div class="metric"><div class="k">Maks hız</div><div class="v" id="trMax">–</div></div>
+      <div class="metric"><div class="k">Rölanti</div><div class="v" id="trIdle">–</div></div>
+      <div class="metric"><div class="k">Menzil</div><div class="v" id="trRange">–</div></div>
+    </div>
+    <dl class="kv" style="margin-top:14px"><dt>Başlangıç</dt><dd id="trStart">–</dd></dl>
+  </div>
+
+  <div class="cols">
+    <div class="card">
+      <div class="card-head"><h2>Benzin fiyatı</h2><span class="pill" id="fuelMode">–</span></div>
+      <div class="big" id="fuelPrice">–<small>TL/L</small></div>
+      <dl class="kv" style="margin-top:12px">
+        <dt>Ürün</dt><dd id="fuelProduct">–</dd>
+        <dt>İl</dt><dd id="fuelProvince">–</dd>
+        <dt>İlçe</dt><dd id="fuelDistrict">–</dd>
+        <dt>Kaynak</dt><dd id="fuelSource">–</dd>
+        <dt>Güncelleme</dt><dd id="fuelUpdated">–</dd>
+        <dt>100 km maliyeti</dt><dd id="fuel100">–</dd>
+        <dt>Depo dolumu</dt><dd id="fuelTank">–</dd>
+      </dl>
+      <label class="f" for="setPrice" style="margin-top:12px">Elle fiyat (TL/L, boş bırakırsan otomatik)
+        <input id="setPrice" inputmode="decimal" autocomplete="off" placeholder="ör. 77,40">
+      </label>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>Tüketim kalibrasyonu</h2><span class="pill" id="calState">–</span></div>
+      <dl class="kv">
+        <dt>Bildiğin ortalama</dt><dd id="calReal">–</dd>
+        <dt>Uygulamanın ham ölçümü</dt><dd id="calRaw">–</dd>
+        <dt>Kalibrasyon mesafesi</dt><dd id="calDist">–</dd>
+        <dt>Düzeltme katsayısı</dt><dd id="calFactor">–</dd>
+      </dl>
+      <label class="f" for="setReal" style="margin-top:12px">Gerçek ortalama tüketim (L/100 km)
+        <input id="setReal" inputmode="decimal" autocomplete="off">
+      </label>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h2>Geçmiş yolculuklar</h2>
+      <button class="btn danger" id="btnTripClear" disabled>Geçmişi sil</button>
+    </div>
+    <div class="confirm" id="tripClearConfirm" hidden style="margin-bottom:12px">
+      <p>Tüm yolculuklar ve tüketim kalibrasyonu silinecek.</p>
+      <div class="row"><button class="btn danger" id="btnTripClearYes">Sil</button><button class="btn" id="btnTripClearNo">Vazgeç</button></div>
+    </div>
+    <div class="metrics" style="margin-bottom:14px">
+      <div class="metric"><div class="k">Yolculuk</div><div class="v" id="totN">0</div></div>
+      <div class="metric"><div class="k">Toplam mesafe</div><div class="v" id="totDist">–</div></div>
+      <div class="metric"><div class="k">Toplam yakıt</div><div class="v" id="totFuel">–</div></div>
+      <div class="metric"><div class="k">Toplam tutar</div><div class="v" id="totCost">–</div></div>
+    </div>
+    <div class="tbl"><table>
+      <thead><tr><th>Başlangıç</th><th>Bitiş</th><th class="r">km</th><th class="r">L</th><th class="r">L/100 km</th><th class="r">TL/L</th><th class="r">Tutar (TL)</th></tr></thead>
+      <tbody id="tripRows"></tbody>
+    </table></div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h2>Bakım</h2><span class="pill" id="maintState">–</span></div>
+    <div class="form" style="margin-bottom:12px">
+      <label class="f" for="setOdo">Gösterge kilometresi (girdiğin an)
+        <input id="setOdo" inputmode="numeric" autocomplete="off" placeholder="ör. 184.500">
+      </label>
+      <div class="metric"><div class="k">Tahmini güncel km</div><div class="v" id="odoNow">–</div><div class="note" id="odoAt"></div></div>
+    </div>
+    <div class="maint" id="maintList"></div>
+  </div>
+</section>
+
+<!-- ARIZALAR -->
+<section class="page" id="tab-dtc" hidden>
+  <div class="card">
+    <div class="card-head">
+      <h2>Arıza kodları</h2>
+      <div class="row">
+        <button class="btn primary" id="btnRead" disabled>Kodları oku</button>
+        <button class="btn danger" id="btnClear" disabled>Kodları sil</button>
+      </div>
+    </div>
+    <div class="metrics">
+      <div class="metric"><div class="k">Arıza lambası</div><div class="v" id="sumMil">–</div></div>
+      <div class="metric"><div class="k">Kayıtlı</div><div class="v" id="sumStored">–</div></div>
+      <div class="metric"><div class="k">Bekleyen</div><div class="v" id="sumPending">–</div></div>
+      <div class="metric"><div class="k">Son okuma</div><div class="v" id="sumTime" style="font-size:16px;padding-top:4px">–</div></div>
+    </div>
+    <div class="confirm" id="clearConfirm" hidden style="margin-top:14px">
+      <p><b>Kodlar, freeze frame ve hazırlık testleri sıfırlanacak.</b> Kontak açık, motor kapalı olmalı. Hazırlık testleri birkaç gün normal sürüşle tamamlanır; muayeneden hemen önce silme.</p>
+      <div class="row"><button class="btn danger" id="btnClearYes">Sil</button><button class="btn" id="btnClearNo">Vazgeç</button></div>
+    </div>
+    <p class="err" id="dtcErr" hidden style="margin-top:12px"></p>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h2>Muayene ön kontrolü</h2><span class="pill" id="inspState">Okunmadı</span></div>
+    <div class="tbl"><table><thead><tr><th>Kontrol</th><th>Sonuç</th><th>Durum</th></tr></thead><tbody id="inspRows"></tbody></table></div>
+  </div>
+
+  <div class="cols">
+    <div class="card">
+      <h2>Kayıtlı kodlar</h2>
+      <div class="tbl"><table><thead><tr><th>Kod</th><th>Açıklama</th><th>Sistem</th><th>Kaynak</th></tr></thead><tbody id="listStored"></tbody></table></div>
+    </div>
+    <div class="card">
+      <h2>Bekleyen kodlar</h2>
+      <div class="tbl"><table><thead><tr><th>Kod</th><th>Açıklama</th><th>Sistem</th><th>Kaynak</th></tr></thead><tbody id="listPending"></tbody></table></div>
+    </div>
+  </div>
+
+  <div class="cols">
+    <div class="card">
+      <div class="card-head"><h2>Freeze frame</h2><span class="pill mono" id="ffCode">–</span></div>
+      <div class="tbl"><table><thead><tr><th>Parametre</th><th class="r">Değer</th><th>Birim</th></tr></thead><tbody id="ffRows"></tbody></table></div>
+    </div>
+    <div class="card">
+      <h2>Hazırlık testleri</h2>
+      <div class="tbl"><table><thead><tr><th>Test</th><th>Durum</th></tr></thead><tbody id="listReady"></tbody></table></div>
+    </div>
+  </div>
+</section>
+
+<!-- TESTLER -->
+<section class="page" id="tab-test" hidden>
+  <div class="cols">
+    <div class="card">
+      <h2>Akü ve şarj testi</h2>
+      <div class="steps">
+        <div class="step">
+          <div class="step-head"><b>1. Dinlenme voltajı <span class="muted">motor en az 1 saattir kapalı</span></b><button class="btn" id="btnRest" disabled>Ölç</button></div>
+          <dl class="kv"><dt>Ölçüm</dt><dd id="bRestV">–</dd><dt>Değerlendirme</dt><dd id="bRestJ">–</dd><dt>Zaman</dt><dd id="bRestT">–</dd></dl>
+        </div>
+        <div class="step">
+          <div class="step-head"><b>2. Marş testi <span class="muted">başlat, sonra motoru çalıştır</span></b><button class="btn" id="btnCrank" disabled>Başlat</button></div>
+          <p class="note" id="bCrankS">–</p>
+          <canvas class="small" id="crankChart"></canvas>
+          <dl class="kv"><dt>En düşük voltaj</dt><dd id="bCrankV">–</dd><dt>Değerlendirme</dt><dd id="bCrankJ">–</dd><dt>Zaman</dt><dd id="bCrankT">–</dd></dl>
+        </div>
+        <div class="step">
+          <div class="step-head"><b>3. Şarj voltajı <span class="muted">motor rölantide</span></b>
+            <div class="row"><button class="btn" id="btnCharge" disabled>Yüksüz ölç</button><button class="btn" id="btnChargeL" disabled>Yüklü ölç</button></div></div>
+          <dl class="kv">
+            <dt>Yüksüz</dt><dd id="bChV">–</dd><dt>Değerlendirme</dt><dd id="bChJ">–</dd>
+            <dt>Yüklü (far, fan, arka cam)</dt><dd id="bChLV">–</dd><dt>Değerlendirme</dt><dd id="bChLJ">–</dd>
+            <dt>Zaman</dt><dd id="bChT">–</dd>
+          </dl>
+        </div>
+      </div>
+      <p class="note" style="margin-top:12px">Voltajı adaptör ölçer; multimetreyle 0,1–0,2 V fark çıkabilir.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>0–100 km/sa</h2><button class="btn primary" id="btnLaunch" disabled>Hazırla</button></div>
+      <div class="timer" id="lTime">–<small>sn</small></div>
+      <p class="note" id="lState" style="margin-top:6px">Sadece kapalı ve güvenli bir alanda dene.</p>
+      <dl class="kv" style="margin-top:12px">
+        <dt>0–50 km/sa</dt><dd id="l50">–</dd>
+        <dt>0–100 km/sa</dt><dd id="l100">–</dd>
+        <dt>Örnekleme</dt><dd id="lHz">–</dd>
+        <dt>Hassasiyet</dt><dd id="lAcc">–</dd>
+      </dl>
+      <div class="tbl" style="margin-top:12px"><table>
+        <thead><tr><th>Tarih</th><th class="r">0–50 (sn)</th><th class="r">0–100 (sn)</th><th class="r">Hz</th></tr></thead>
+        <tbody id="lRows"></tbody>
+      </table></div>
+    </div>
+  </div>
+</section>
+
+<!-- AYARLAR -->
+<section class="page" id="tab-conn" hidden>
+  <div class="cols">
+    <div class="card">
+      <h2>Adaptör ve araç</h2>
+      <dl class="kv">
+        <dt>Cihaz adı</dt><dd id="ciName">–</dd>
+        <dt>BLE servisi</dt><dd id="ciSvc" class="mono">–</dd>
+        <dt>Adaptör</dt><dd id="ciVer">–</dd>
+        <dt>Protokol</dt><dd id="ciProto">–</dd>
+        <dt>Protokol kodu</dt><dd id="ciProtoN" class="mono">–</dd>
+        <dt>Desteklenen PID</dt><dd id="ciPids">–</dd>
+        <dt>Şasi no (ECU)</dt><dd id="ciVin" class="mono">–</dd>
+        <dt>Bağlantı zamanı</dt><dd id="ciTime">–</dd>
+      </dl>
+    </div>
+    <div class="card">
+      <h2>Ayarlar</h2>
+      <div class="form">
+        <label class="f" for="setProto">OBD protokolü
+          <select id="setProto">
+            <option value="0">Otomatik</option>
+            <option value="3">3 · ISO 9141-2</option>
+            <option value="4">4 · ISO 14230-4 KWP (5 baud)</option>
+            <option value="5">5 · ISO 14230-4 KWP (hızlı)</option>
+            <option value="6">6 · ISO 15765-4 CAN 11 bit 500k</option>
+            <option value="7">7 · ISO 15765-4 CAN 29 bit 500k</option>
+            <option value="8">8 · ISO 15765-4 CAN 11 bit 250k</option>
+            <option value="9">9 · ISO 15765-4 CAN 29 bit 250k</option>
+          </select>
+        </label>
+        <label class="f" for="setUuid">Özel BLE servis UUID
+          <input id="setUuid" class="mono" placeholder="ör. fff0" autocomplete="off" spellcheck="false">
+        </label>
+        <label class="f" for="setCc">Motor hacmi (cc)
+          <input id="setCc" inputmode="numeric" autocomplete="off">
+        </label>
+        <label class="f" for="setTank">Depo hacmi (L)
+          <input id="setTank" inputmode="decimal" autocomplete="off">
+        </label>
+        <label class="f" for="setVe">Hacimsel verim
+          <input id="setVe" inputmode="decimal" autocomplete="off">
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h2>Terminal</h2>
+      <div class="row">
+        <label class="check" for="logPoll"><input type="checkbox" id="logPoll">Canlı veri trafiği</label>
+        <button class="btn" id="btnCopyLog">Kopyala</button>
+        <button class="btn" id="btnClearLog">Temizle</button>
+      </div>
+    </div>
+    <pre class="term" id="term" aria-live="off"></pre>
+    <form class="term-in" id="termForm">
+      <input id="termCmd" placeholder="AT veya OBD komutu, ör. ATRV, 010C" autocomplete="off" spellcheck="false" autocapitalize="characters">
+      <button class="btn" id="btnSend" disabled>Gönder</button>
+    </form>
+  </div>
+</section>
+
+</div></main>
+
+<div class="hud" id="hud" hidden>
+  <div class="hud-in" id="hudIn">
+    <div class="hud-speed" id="hudSpeed">0</div>
+    <div class="hud-unit">km/sa</div>
+    <div class="hud-bar"><div id="hudBar"></div></div>
+    <div class="hud-row"><span id="hudRpm">–</span><span id="hudTemp">–</span></div>
+  </div>
+  <div class="hud-ctrl"><button class="btn" id="hudMirror">Ayna: kapalı</button><button class="btn" id="hudClose">Kapat</button></div>
+</div>
+
+<script>
+(() => {
+"use strict";
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const enc = new TextEncoder(), dec = new TextDecoder();
+const NF = (v, d=0) => v == null || !isFinite(v) ? '–' : Number(v).toLocaleString('tr-TR',{minimumFractionDigits:d,maximumFractionDigits:d});
+const hex2 = n => n.toString(16).toUpperCase().padStart(2,'0');
+const pad = (n,l=2) => String(n).padStart(l,'0');
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+const parseNum = s => { const t = String(s ?? '').trim().replace(/\s/g,''); if (!t) return null; const v = parseFloat(t.replace(/\.(?=\d{3}(\D|$))/g,'').replace(',','.')); return isFinite(v) ? v : null; };
+const toDate = d => d ? (d instanceof Date ? d : new Date(d)) : null;
+const fmtDT = d => { d = toDate(d); return d && !isNaN(d) ? d.toLocaleString('tr-TR',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit'}) : '–'; };
+const fmtDTm = d => { d = toDate(d); return d && !isNaN(d) ? d.toLocaleString('tr-TR',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}) : '–'; };
+const fmtD = d => { d = toDate(d); return d && !isNaN(d) ? d.toLocaleDateString('tr-TR',{year:'numeric',month:'2-digit',day:'2-digit'}) : '–'; };
+const fmtDur = s => { if (s == null) return '–'; s = Math.round(s); const h = Math.floor(s/3600), m = Math.floor(s%3600/60), x = s%60; return h ? `${h} sa ${pad(m)} dk` : `${m} dk ${pad(x)} sn`; };
+const isoLocal = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}.${pad(d.getMilliseconds(),3)}`;
+const vU = (v, d, u) => v == null || !isFinite(v) ? '–' : `${NF(v,d)}<small>${u}</small>`;
+const store = {
+  get(k, d){ try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } },
+  set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
+};
+
+/* ---------- ayarlar ve kayıtlı veriler ---------- */
+const DEF = {proto:'0', uuid:'', cc:1149, ve:0.85, tank:55, realAvg:6.8, manualPrice:null, odoKm:null, odoDate:null};
+let settings = {...DEF, ...store.get('clio-obd-settings', {})};
+const saveSettings = () => store.set('clio-obd-settings', settings);
+let trips = store.get('clio-obd-trips', []);
+let launches = store.get('clio-obd-launch', []);
+let battery = store.get('clio-obd-battery', {});
+const MAINT_DEF = [
+  {id:'oil',   name:'Motor yağı ve yağ filtresi', intKm:10000, intMonths:12},
+  {id:'air',   name:'Hava filtresi',              intKm:30000, intMonths:24},
+  {id:'cabin', name:'Polen filtresi',             intKm:15000, intMonths:12},
+  {id:'plug',  name:'Bujiler',                    intKm:30000, intMonths:36},
+  {id:'belt',  name:'Triger seti',                intKm:60000, intMonths:48},
+];
+let maint = MAINT_DEF.map(d => ({...d, lastKm:null, lastDate:null, ...(store.get('clio-obd-maint', []).find(x => x.id === d.id) || {})}));
+const saveMaint = () => store.set('clio-obd-maint', maint);
+
+/* ---------- PID tanımları ---------- */
+const PIDS = {
+  '0C':{k:'rpm',     l:'Devir',               u:'dev/dk', n:2, f:(a,b)=>(a*256+b)/4, d:0, fast:true, g:'motor'},
+  '0D':{k:'speed',   l:'Hız',                 u:'km/sa',  n:1, f:a=>a, d:0, fast:true, g:'motor'},
+  '04':{k:'load',    l:'Motor yükü',          u:'%',      n:1, f:a=>a*100/255, d:0, fast:true, g:'motor'},
+  '11':{k:'throttle',l:'Gaz kelebeği',        u:'%',      n:1, f:a=>a*100/255, d:0, fast:true, g:'motor'},
+  '0B':{k:'map',     l:'Manifold basıncı',    u:'kPa',    n:1, f:a=>a, d:0, fast:true, g:'motor'},
+  '0E':{k:'timing',  l:'Ateşleme avansı',     u:'°',      n:1, f:a=>a/2-64, d:1, g:'motor'},
+  '05':{k:'coolant', l:'Motor suyu',          u:'°C',     n:1, f:a=>a-40, d:0, g:'temp'},
+  '0F':{k:'iat',     l:'Emme havası',         u:'°C',     n:1, f:a=>a-40, d:0, g:'temp'},
+  '46':{k:'ambient', l:'Dış hava',            u:'°C',     n:1, f:a=>a-40, d:0, g:'temp'},
+  '10':{k:'maf',     l:'Hava akışı (MAF)',    u:'g/s',    n:2, f:(a,b)=>(a*256+b)/100, d:1, fast:true, g:'fuel'},
+  '06':{k:'stft',    l:'Kısa yakıt trimi',    u:'%',      n:1, f:a=>(a-128)*100/128, d:1, g:'fuel'},
+  '07':{k:'ltft',    l:'Uzun yakıt trimi',    u:'%',      n:1, f:a=>(a-128)*100/128, d:1, g:'fuel'},
+  '2F':{k:'fuel',    l:'Yakıt seviyesi',      u:'%',      n:1, f:a=>a*100/255, d:0, g:'fuel'},
+  '14':{k:'o2s1',    l:'O2 sensör 1 (ön)',    u:'V',      n:1, f:a=>a/200, d:2, g:'sensor'},
+  '15':{k:'o2s2',    l:'O2 sensör 2 (arka)',  u:'V',      n:1, f:a=>a/200, d:2, g:'sensor'},
+  '42':{k:'ecuv',    l:'ECU voltajı',         u:'V',      n:2, f:(a,b)=>(a*256+b)/1000, d:1, g:'elec'},
+  '33':{k:'baro',    l:'Atmosfer basıncı',    u:'kPa',    n:1, f:a=>a, d:0, g:'count'},
+  '1F':{k:'runtime', l:'Motor çalışma süresi',u:'sn',     n:2, f:(a,b)=>a*256+b, d:0, g:'count'},
+  '31':{k:'distClr', l:'Kod silmeden beri',   u:'km',     n:2, f:(a,b)=>a*256+b, d:0, g:'count'},
+  '21':{k:'distMil', l:'Lamba yanıkken yol',  u:'km',     n:2, f:(a,b)=>a*256+b, d:0, g:'count'},
+};
+const DERIVED = {
+  batt:{k:'batt', l:'Akü (adaptör)', u:'V',       d:1, g:'elec'},
+  l100:{k:'l100', l:'Anlık tüketim', u:'L/100 km',d:1, g:'fuel'},
+  lph: {k:'lph',  l:'Anlık tüketim', u:'L/sa',    d:2, g:'fuel'},
+};
+const GROUPS = [['motor','Motor'],['fuel','Yakıt'],['temp','Sıcaklık'],['sensor','Sensörler'],['elec','Elektrik'],['count','Sayaçlar']];
+const META = {}; for (const p in PIDS) META[PIDS[p].k] = PIDS[p]; for (const k in DERIVED) META[k] = DERIVED[k];
+const FF_PIDS = ['05','0C','0D','04','11','0B','0E','0F','06','07','10'];
+
+/* ---------- durum ---------- */
+const S = {
+  t:null, mode:null, connected:false, busy:false, polling:false, pause:0, isCAN:false,
+  supported:new Set(), values:{}, hist:{}, sel:'rpm', est:false, rec:null, done:null, reqs:[],
+  info:{}, mon:null, dtcStored:[], dtcPending:[], lastRead:null, ff:null, wake:null,
+  trip:null, cal:{factor:1}, fuel:null, launch:null, crank:null
+};
+
+/* ---------- terminal ---------- */
+const term = $('#term'); let logLines = 0;
+function log(kind, text){
+  const line = document.createElement('div'); line.className = kind;
+  const d = new Date();
+  line.textContent = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}.${pad(d.getMilliseconds(),3)}  ${kind==='tx'?'>':kind==='rx'?'<':'·'} ${text}`;
+  term.appendChild(line);
+  if (++logLines > 600) { term.firstChild.remove(); logLines--; }
+  term.scrollTop = term.scrollHeight;
+}
+
+/* ---------- BLE taşıyıcı ---------- */
+const SVC = [
+  '0000fff0-0000-1000-8000-00805f9b34fb','0000ffe0-0000-1000-8000-00805f9b34fb',
+  '000018f0-0000-1000-8000-00805f9b34fb','0000ffb0-0000-1000-8000-00805f9b34fb',
+  '0000ae30-0000-1000-8000-00805f9b34fb','0000beef-0000-1000-8000-00805f9b34fb',
+  'e7810a71-73ae-499d-8c15-faa9aef0c3f2'
+];
+const normUuid = u => { u = u.trim().toLowerCase(); if (/^[0-9a-f]{4}$/.test(u)) return `0000${u}-0000-1000-8000-00805f9b34fb`; return u; };
+
+class BleTransport {
+  constructor(){ this.buf=''; this.waiter=null; }
+  async open(){
+    const opt = [...SVC]; if (settings.uuid) opt.push(normUuid(settings.uuid));
+    this.dev = await navigator.bluetooth.requestDevice({acceptAllDevices:true, optionalServices:opt});
+    this.name = this.dev.name || '(isimsiz)';
+    this.dev.addEventListener('gattserverdisconnected', onLinkLost);
+    log('sys', `cihaz seçildi: ${this.name}`);
+    const server = await this.dev.gatt.connect();
+    const services = await server.getPrimaryServices();
+    for (const s of services){
+      const chars = await s.getCharacteristics();
+      const props = c => Object.entries({n:c.properties.notify,i:c.properties.indicate,w:c.properties.write,r:c.properties.writeWithoutResponse}).filter(e=>e[1]).map(e=>e[0]).join('');
+      log('sys', `servis ${s.uuid} → ${chars.map(c=>c.uuid.slice(4,8)+'['+props(c)+']').join(' ')}`);
+      const n = chars.find(c=>c.properties.notify||c.properties.indicate);
+      const w = chars.find(c=>c.properties.writeWithoutResponse||c.properties.write);
+      if (n && w && !this.rx){ this.rx=n; this.tx=w; this.svc=s.uuid; }
+    }
+    if (!this.rx) throw Object.assign(new Error('Uygun BLE karakteristiği bulunamadı'), {code:'NO_CHAR'});
+    await this.rx.startNotifications();
+    this.rx.addEventListener('characteristicvaluechanged', e => this.onData(e.target.value));
+  }
+  onData(dv){
+    this.buf += dec.decode(dv, {stream:true});
+    const i = this.buf.indexOf('>');
+    if (i >= 0 && this.waiter){ const out = this.buf.slice(0,i); this.buf = this.buf.slice(i+1); const w = this.waiter; this.waiter = null; w(out); }
+  }
+  send(c, timeout){
+    return new Promise((resolve, reject) => {
+      this.buf = '';
+      const t = setTimeout(() => { this.waiter = null; resolve(this.buf + '\nTIMEOUT'); }, timeout);
+      this.waiter = v => { clearTimeout(t); resolve(v); };
+      const data = enc.encode(c + '\r');
+      (async () => {
+        for (let i=0; i<data.length; i+=20){
+          const chunk = data.slice(i, i+20);
+          if (this.tx.properties.writeWithoutResponse) await this.tx.writeValueWithoutResponse(chunk);
+          else await this.tx.writeValue(chunk);
+        }
+      })().catch(e => { clearTimeout(t); this.waiter = null; reject(e); });
+    });
+  }
+  close(){ try { this.dev?.removeEventListener('gattserverdisconnected', onLinkLost); this.dev?.gatt?.disconnect(); } catch {} }
+}
+
+/* ---------- demo ECU ---------- */
+class DemoTransport {
+  constructor(){
+    this.t0 = performance.now(); this.stored = ['P0130']; this.pending = ['P0420']; this.cleared = false;
+    this.name = 'Demo ECU'; this.svc = '—'; this.engine = true; this.startAt = null; this.launchAt = null;
+    this.sup = ['01','03','04','05','06','07','0B','0C','0D','0E','0F','11','14','15','1F','20','21','2F','31','33','40','42','46'];
+    this.ff = ['02','04','05','06','07','0B','0C','0D','0E','0F','11'];
+    this.vin = 'VF1BRDEMOECU00001';
+  }
+  open(){ return Promise.resolve(); }
+  close(){}
+  setEngine(on){ this.engine = on; }
+  scheduleStart(ms){ this.startAt = performance.now() + ms; }
+  send(c){ return new Promise(r => setTimeout(() => r(this.reply(c.toUpperCase().replace(/\s/g,''))), 30 + Math.random()*30)); }
+  tickEngine(){ if (this.startAt && performance.now() > this.startAt + 1300){ this.engine = true; this.startAt = null; this.t0 = performance.now(); } }
+  sim(){
+    this.tickEngine();
+    const now = performance.now(), rnd = a => (Math.random()-.5)*a;
+    const t = (now - this.t0)/1000;
+    if (!this.engine) return {rpm:0, sp:0, th:0, map:101, load:0, cool:Math.max(24, 88 - t*0.05), iat:24, t};
+    let sp, th;
+    if (this.launchAt){
+      const lt = (now - this.launchAt)/1000;
+      if (lt < 0){ sp = 0; th = 0; }
+      else { sp = 130*(1-Math.exp(-lt/9)); th = 100; if (sp >= 108){ this.launchAt = null; this.t0 = now - 28000; } }
+    } else {
+      const c = t % 40;
+      if (c<6){ sp=0; th=0; } else if (c<16){ sp=(c-6)*7.2; th=38+rnd(6); }
+      else if (c<28){ sp=72+Math.sin(c)*2; th=17+rnd(3); } else if (c<36){ sp=72-(c-28)*9; th=0; } else { sp=0; th=0; }
+    }
+    sp = Math.max(0, sp);
+    const gear = sp<1?0: sp<20?1: sp<38?2: sp<58?3: sp<80?4:5;
+    const rpm = gear===0 ? 820+rnd(30) : Math.max(1050, sp*[0,125,72,50,40,33][gear]) + rnd(40);
+    const map = th>0 ? Math.min(99, 32+th*0.7) : (sp>5?22:31); const load = th>0 ? Math.min(98, 20+th*0.8) : (sp>5?8:19);
+    return {rpm, sp, th, map, load, cool: Math.min(89, 31+t*1.1)+rnd(1), iat: 30+rnd(1), t};
+  }
+  volt(){
+    this.tickEngine();
+    if (this.startAt){ const dt = performance.now() - this.startAt; if (dt >= 0) return 10.15 + 0.35*Math.abs(Math.sin(dt/40)) + (dt < 150 ? 1.4 : 0); }
+    return this.engine ? 14.1 + Math.random()*0.12 : 12.52 + Math.random()*0.04;
+  }
+  enc(code){ const a = ('PCBU'.indexOf(code[0])<<6)|(parseInt(code[1])<<4)|parseInt(code[2],16); return hex2(a)+code.slice(3); }
+  mask(list, base){ const b=[0,0,0,0]; for (const p of list){ const n=parseInt(p,16)-base; if (n>=1&&n<=32) b[(n-1)>>3] |= 0x80>>((n-1)&7); } return b.map(hex2).join(''); }
+  reply(c){
+    if (c==='ATZ'||c==='ATI') return 'ELM327 v1.5';
+    if (c==='ATRV') return this.volt().toFixed(1)+'V';
+    if (c==='ATDPN') return 'A6';
+    if (c==='ATDP') return 'AUTO, ISO 15765-4 (CAN 11/500)';
+    if (c.startsWith('AT')) return 'OK';
+    if (c==='0100') return '4100'+this.mask(this.sup,0);
+    if (c==='0120') return '4120'+this.mask(this.sup,32);
+    if (c==='0140') return '4140'+this.mask(this.sup,64);
+    if (c==='0101'){ const a=(this.stored.length?0x80:0)|this.stored.length; return '4101'+hex2(a)+'07'+'65'+(this.cleared?'65':'04'); }
+    if (c==='03') return '43'+hex2(this.stored.length)+this.stored.map(x=>this.enc(x)).join('');
+    if (c==='07') return '47'+hex2(this.pending.length)+this.pending.map(x=>this.enc(x)).join('');
+    if (c==='0A') return 'NO DATA';
+    if (c==='04'){ this.stored=[]; this.pending=[]; this.cleared=true; return '44'; }
+    if (c==='0902'){ const h = [...this.vin].map(ch=>hex2(ch.charCodeAt(0))).join(''); return `014\r0:490201${h.slice(0,6)}\r1:${h.slice(6,20)}\r2:${h.slice(20,34)}`; }
+    if (c==='020000') return '420000'+this.mask(this.ff,0);
+    if (c.startsWith('02') && c.length===6){
+      const p = c.slice(2,4);
+      if (p==='02') return '420200'+(this.stored.length ? this.enc(this.stored[0]) : '0000');
+      if (!this.stored.length || !this.ff.includes(p)) return 'NO DATA';
+      const snap = {'04':'69','05':'80','06':'88','07':'8B','0B':'34','0C':'2648','0D':'3F','0E':'AA','0F':'43','11':'38'};
+      return '42'+p+'00'+snap[p];
+    }
+    if (c.startsWith('01') && c.length===4){
+      const p = c.slice(2); if (!this.sup.includes(p)) return 'NO DATA';
+      const s = this.sim(), B = v=>hex2(clamp(Math.round(v),0,255)), W = v=>{ v=Math.max(0,Math.round(v)); return hex2(v>>8&255)+hex2(v&255); };
+      const o2 = s.rpm ? 0.45+0.38*Math.sin(s.t*5.3) : 0.05;
+      const m = {'03':'0200','04':B(s.load*2.55),'05':B(s.cool+40),'06':B(128+(Math.random()-.5)*6),'07':B(131),'0B':B(s.map),'0C':W(s.rpm*4),'0D':B(s.sp),
+        '0E':B((s.th>0?14:8)*2+128),'0F':B(s.iat+40),'11':B((s.th*0.9+8)*2.55),'14':B(o2*200)+'FF','15':B(0.66*200)+'FF','1F':W(s.rpm?s.t+42:0),
+        '21':W(this.stored.length?86:0),'2F':B(158),'31':W(this.cleared?0:1240),'33':B(101),'42':W(s.rpm?14100:12500),'46':B(58)};
+      return '41'+p+m[p];
+    }
+    return '?';
+  }
+}
+
+/* ---------- komut kuyruğu ve ayrıştırma ---------- */
+let queue = Promise.resolve();
+function cmd(c, timeout=4000, quiet=false){
+  const run = async () => {
+    if (!S.t) throw new Error('Bağlantı yok');
+    const show = !quiet || $('#logPoll').checked;
+    if (show) log('tx', c);
+    const r = await S.t.send(c, timeout);
+    S.reqs.push(performance.now());
+    if (show) log(/TIMEOUT|ERROR|UNABLE|\?/.test(r) ? 'er' : 'rx', r.replace(/[\r\n]+/g,' ⏎ ').trim() || '(boş)');
+    return r;
+  };
+  const p = queue.then(run, run); queue = p.catch(()=>{}); return p;
+}
+const lines = r => r.toUpperCase().split(/[\r\n]+/).map(s=>s.replace(/\s+/g,'')).filter(s => s && !/^(SEARCHING|BUSINIT|OK$|TIMEOUT|>)/.test(s));
+const bad = r => /NO ?DATA|UNABLE|STOPPED|CAN ?ERROR|BUS ?ERROR|BUFFER|TIMEOUT|^\s*\?/m.test(r.toUpperCase());
+function pidBytes(r, mode, pid){
+  const key = hex2(0x40+mode)+pid;
+  for (const l of lines(r)){
+    const s = l.replace(/^[0-9A-F]:/,''); const i = s.indexOf(key);
+    if (i >= 0){ const h = s.slice(i+key.length); const b=[]; for (let j=0;j+1<h.length;j+=2) b.push(parseInt(h.substr(j,2),16)); return b.filter(x=>!isNaN(x)); }
+  }
+  return null;
+}
+const decodeDtc = h => { const a = parseInt(h.substr(0,2),16); return 'PCBU'[a>>6] + ((a>>4)&3) + h[1] + h.substr(2,2); };
+function parseDtc(r, rb){
+  const ls = lines(r).filter(l => /^[0-9A-F:]+$/.test(l));
+  const codes = new Set();
+  const take = (data, hasCount) => {
+    if (!data.startsWith(rb)) return;
+    let body = data.slice(2);
+    if (hasCount){ const n = parseInt(body.substr(0,2),16); body = body.slice(2, 2 + n*4); }
+    for (let i=0;i+3<body.length;i+=4){ const h = body.substr(i,4); if (h !== '0000') codes.add(decodeDtc(h)); }
+  };
+  if (S.isCAN){
+    const multi = ls.some(l => /^[0-9A-F]:/.test(l));
+    if (multi) take(ls.filter(l => /^[0-9A-F]:/.test(l)).map(l => l.slice(2)).join(''), true);
+    else ls.forEach(l => take(l, true));
+  } else ls.forEach(l => take(l, false));
+  return [...codes];
+}
+function parseVin(r){
+  const ls = lines(r).filter(l => /^[0-9A-F:]+$/.test(l));
+  let hex = '';
+  if (ls.some(l => /^[0-9A-F]:/.test(l))){
+    hex = ls.filter(l => /^[0-9A-F]:/.test(l)).map(l => l.slice(2)).join('');
+    const i = hex.indexOf('4902'); if (i < 0) return null; hex = hex.slice(i+6);
+  } else {
+    const parts = ls.filter(l => l.startsWith('4902')).map(l => ({n:parseInt(l.substr(4,2),16), d:l.slice(6)})).sort((a,b) => a.n-b.n);
+    if (!parts.length) return null; hex = parts.map(p => p.d).join('');
+  }
+  let s = ''; for (let i=0;i+1<hex.length;i+=2){ const c = parseInt(hex.substr(i,2),16); if (c>=0x30 && c<=0x5A) s += String.fromCharCode(c); }
+  return s.length >= 17 ? s.slice(-17) : null;
+}
+
+/* ---------- bağlantı akışı ---------- */
+function setStatus(text, kind){ $('#statusText').textContent = text; $('#dot').className = 'dot ' + (kind||''); }
+function setControls(){
+  const on = S.connected, testBusy = !!(S.launch || S.crank || S.bTest);
+  $('#btnConnect').textContent = on ? (S.mode==='demo' ? 'Demoyu durdur' : 'Bağlantıyı kes') : 'Bağlan';
+  $('#btnConnect').disabled = !on && (S.busy || !hasBt);
+  for (const id of ['#btnRead','#btnClear','#btnSend']) $(id).disabled = !on;
+  for (const id of ['#btnRest','#btnCharge','#btnChargeL']) $(id).disabled = !on || testBusy;
+  $('#btnCrank').disabled = !on || (testBusy && !S.crank);
+  $('#btnLaunch').disabled = !on || (testBusy && !S.launch);
+  $('#btnTripEnd').disabled = !S.trip;
+  $('#dashEmpty').hidden = on; $('#dash').hidden = !on;
+}
+
+async function start(mode){
+  if (S.connected || S.busy) return;
+  S.busy = true; S.mode = mode; setControls();
+  setStatus(mode==='demo' ? 'Demo başlatılıyor' : 'Cihaz seçiliyor', 'busy');
+  try {
+    S.t = mode==='demo' ? new DemoTransport() : new BleTransport();
+    await S.t.open();
+    setStatus('Adaptör hazırlanıyor', 'busy');
+    await initElm();
+    S.connected = true; S.values = {}; S.hist = {}; S.reqs = [];
+    setStatus(mode==='demo' ? 'Demo verisi' : 'Bağlı', 'on');
+    buildTiles(); renderInfo(); setControls();
+    await readDtc(true);
+    if (!S.connected) return;
+    requestWake();
+    newTrip();
+    S.polling = true; poll();
+  } catch (e) {
+    S.t?.close(); S.t = null; S.connected = false; queue = Promise.resolve();
+    let msg = e.message;
+    if (e.name==='NotFoundError') msg = 'Cihaz seçilmedi';
+    else if (e.name==='SecurityError' || e.name==='NotAllowedError') msg = 'Bluetooth izni alınamadı. Sayfayı Chrome\'da https adresinden aç.';
+    else if (e.code==='NO_CHAR') msg = 'Cihazda ELM327 servisi bulunamadı. nRF Connect\'te gördüğün servis UUID\'sini Ayarlar sekmesine yaz.';
+    else if (e.code==='NO_ECU') msg = 'Adaptör çalışıyor ama araca ulaşamadı. Kontağı aç ve tekrar dene.';
+    log('er', msg); setStatus(msg, 'err');
+  } finally { S.busy = false; setControls(); renderTrip(); }
+}
+
+async function initElm(){
+  S.info = {name:S.t.name, svc:S.t.svc, time:new Date()};
+  await cmd('ATZ', 5000);
+  for (const c of ['ATE0','ATL0','ATS0','ATH0','ATAT1']) await cmd(c);
+  S.info.ver = lines(await cmd('ATI')).join(' ') || '–';
+  await cmd('ATSP' + settings.proto);
+  S.supported.clear();
+  const b0 = pidBytes(await cmd('0100', 15000), 1, '00');
+  if (!b0 || b0.length < 4) throw Object.assign(new Error('ECU yanıt vermedi'), {code:'NO_ECU'});
+  addMask(S.supported, b0, 0);
+  for (const [p, base] of [['20',32],['40',64]]){
+    if (!S.supported.has(p)) break;
+    const b = pidBytes(await cmd('01'+p), 1, p); if (!b || b.length < 4) break; addMask(S.supported, b, base);
+  }
+  const dpn = lines(await cmd('ATDPN')).join('');
+  S.isCAN = /[6-9A-C]/.test(dpn.replace(/^A/,'').slice(-1));
+  S.info.protoN = dpn || '–';
+  S.info.proto = lines(await cmd('ATDP')).join(' ').replace(/^AUTO,?/,'').trim() || '–';
+  S.info.pids = [...S.supported].filter(p => !['00','20','40','60'].includes(p)).length;
+  const rv = await cmd('0902', 6000);
+  S.info.vin = bad(rv) ? null : parseVin(rv);
+}
+function addMask(set, b, base){ for (let i=0;i<32;i++) if (b[i>>3] & (0x80>>(i&7))) set.add(hex2(base+i+1)); }
+
+function stop(reason){
+  endTrip();
+  S.polling = false; S.connected = false;
+  if (S.launch) S.launch.state = 'cancel';
+  if (S.crank) S.crank.state = 'cancel';
+  S.t?.close(); S.t = null; queue = Promise.resolve(); S.pause = 0;
+  releaseWake();
+  setStatus(reason || 'Bağlı değil', reason ? 'err' : '');
+  if (reason) log('er', reason);
+  setControls(); renderTrip();
+}
+function onLinkLost(){ if (S.connected) stop('Bağlantı koptu'); }
+
+/* ---------- canlı veri döngüsü ---------- */
+function activePids(){ return Object.keys(PIDS).filter(p => S.supported.has(p)); }
+async function readPid(p, quiet=true){
+  const r = await cmd('01'+p, 3000, quiet);
+  const d = PIDS[p], b = pidBytes(r, 1, p);
+  S.values[d.k] = (b && b.length >= d.n) ? d.f(b[0], b[1]) : null;
+  return S.values[d.k];
+}
+async function poll(){
+  const act = activePids(), fast = act.filter(p=>PIDS[p].fast), slow = act.filter(p=>!PIDS[p].fast);
+  let cycle = 0;
+  while (S.polling){
+    if (S.pause > 0){ await sleep(120); continue; }
+    const batch = cycle === 0 ? [...act] : [...fast];
+    if (cycle > 0 && slow.length) batch.push(slow[cycle % slow.length]);
+    if (cycle % 8 === 0) batch.push('RV');
+    try {
+      for (const p of batch){
+        if (!S.polling || S.pause > 0) break;
+        if (p==='RV'){ const v = parseVolt(await cmd('ATRV', 3000, true)); if (v != null) S.values.batt = v; continue; }
+        await readPid(p);
+      }
+    } catch (e) { if (S.polling) stop('İletişim hatası: ' + e.message); break; }
+    derive(); tripTick(); pushHist(); record(); render();
+    cycle++;
+    if (S.mode==='demo') await sleep(60);
+  }
+}
+const parseVolt = r => { const m = r.match(/(\d+(?:[.,]\d+)?)\s*V/i); return m ? parseFloat(m[1].replace(',','.')) : null; };
+
+function derive(){
+  const v = S.values; let maf = v.maf; S.est = false;
+  if (maf == null && v.map != null && v.rpm != null && v.iat != null){
+    maf = v.rpm * v.map / (v.iat + 273.15) / 120 * settings.ve * (settings.cc/1000) * 28.97 / 8.314;
+    S.est = true;
+  }
+  if (maf == null){ v.lphRaw = v.lph = v.l100 = null; return; }
+  const cut = v.throttle != null && v.throttle < 1.5 && v.rpm > 1300 && v.speed > 5;
+  v.lphRaw = cut ? 0 : maf / 14.7 * 3600 / 740;
+  v.lph = v.lphRaw * S.cal.factor;
+  v.l100 = v.speed > 3 ? v.lph / v.speed * 100 : null;
+}
+function pushHist(){
+  for (const k in META){ const v = S.values[k]; if (v == null) continue; (S.hist[k] ||= []).push(v); if (S.hist[k].length > 300) S.hist[k].shift(); }
+}
+
+/* ---------- yol bilgisayarı ---------- */
+const CAL_KM = 25;
+function newTrip(){ S.trip = {start:new Date().toISOString(), dist:0, fuel:0, rawFuel:0, dur:0, idle:0, max:0, last:0, demo:S.mode==='demo'}; renderTrip(); }
+function tripTick(){
+  const T = S.trip; if (!T) return;
+  const now = Date.now(), dt = T.last ? Math.min(30, (now - T.last)/1000) : 0; T.last = now;
+  const v = S.values;
+  if (v.speed != null){ T.dist += v.speed*dt/3600; T.max = Math.max(T.max, v.speed); if (v.speed < 1 && (v.rpm||0) > 300) T.idle += dt; }
+  if (v.lphRaw != null){ T.rawFuel += v.lphRaw*dt/3600; T.fuel += v.lph*dt/3600; }
+  T.dur += dt;
+}
+function endTrip(){
+  const T = S.trip; S.trip = null; if (!T) return;
+  if (!T.demo && T.dist >= 0.2){
+    const price = fuelPrice();
+    trips.unshift({start:T.start, end:new Date().toISOString(), dist:T.dist, fuel:T.fuel, rawFuel:T.rawFuel, dur:T.dur, idle:T.idle, max:T.max, price, cost: price != null ? T.fuel*price : null});
+    trips = trips.slice(0, 300); store.set('clio-obd-trips', trips);
+    log('sys', `yolculuk kaydedildi: ${NF(T.dist,1)} km`);
+  }
+  recalcCal(); renderTrip(); renderTrips(); renderMaint(); setControls();
+}
+function recalcCal(){
+  let d = 0, f = 0; for (const t of trips){ d += t.dist; f += t.rawFuel; }
+  const raw = d > 0.5 ? f/d*100 : null, ready = d >= CAL_KM && raw > 0;
+  S.cal = {dist:d, raw, ready, factor: ready ? clamp(settings.realAvg/raw, 0.5, 2) : 1};
+}
+function fuelPrice(){ return settings.manualPrice != null ? settings.manualPrice : (S.fuel?.price ?? null); }
+function renderTrip(){
+  const T = S.trip, p = fuelPrice();
+  const st = $('#tripState');
+  if (T){ st.className = 'pill ok'; st.textContent = T.demo ? 'Demo (kaydedilmez)' : 'Kaydediliyor'; }
+  else { st.className = 'pill'; st.textContent = S.connected ? 'Durdu' : 'Bağlantı yok'; }
+  $('#trDist').innerHTML = T ? vU(T.dist,1,'km') : '–';
+  $('#trDur').textContent = T ? fmtDur(T.dur) : '–';
+  $('#trFuel').innerHTML = T ? vU(T.fuel,2,'L') : '–';
+  $('#trAvg').innerHTML = T && T.dist >= 0.5 ? vU(T.fuel/T.dist*100,1,'L/100 km') : '–';
+  $('#trCost').innerHTML = T && p != null ? vU(T.fuel*p,2,'TL') : '–';
+  $('#trSpd').innerHTML = T && T.dur > 60 ? vU(T.dist/(T.dur/3600),0,'km/sa') : '–';
+  $('#trMax').innerHTML = T ? vU(T.max,0,'km/sa') : '–';
+  $('#trIdle').textContent = T ? fmtDur(T.idle) : '–';
+  const lvl = S.values.fuel;
+  $('#trRange').innerHTML = S.connected && lvl != null ? vU(lvl/100*settings.tank/settings.realAvg*100,0,'km') : '–';
+  $('#trStart').textContent = T ? fmtDT(T.start) : '–';
+}
+function renderTrips(){
+  let d=0, f=0, c=0, hasC=false;
+  for (const t of trips){ d += t.dist; f += t.fuel; if (t.cost != null){ c += t.cost; hasC = true; } }
+  $('#totN').textContent = trips.length;
+  $('#totDist').innerHTML = trips.length ? vU(d,1,'km') : '–';
+  $('#totFuel').innerHTML = trips.length ? vU(f,1,'L') : '–';
+  $('#totCost').innerHTML = hasC ? vU(c,0,'TL') : '–';
+  $('#btnTripClear').disabled = !trips.length;
+  $('#tripRows').innerHTML = trips.length ? trips.slice(0,50).map(t => `<tr><td>${fmtDTm(t.start)}</td><td>${fmtDTm(t.end)}</td><td class="r">${NF(t.dist,1)}</td><td class="r">${NF(t.fuel,2)}</td><td class="r">${t.dist>=0.5?NF(t.fuel/t.dist*100,1):'–'}</td><td class="r">${NF(t.price,2)}</td><td class="r">${NF(t.cost,2)}</td></tr>`).join('')
+    : `<tr><td colspan="7" class="muted">Henüz yolculuk yok</td></tr>`;
+  renderCal();
+}
+function renderCal(){
+  const c = S.cal;
+  $('#calReal').textContent = NF(settings.realAvg,1) + ' L/100 km';
+  $('#calRaw').textContent = c.raw != null ? NF(c.raw,2) + ' L/100 km' : '–';
+  $('#calDist').textContent = `${NF(Math.min(c.dist||0, CAL_KM),1)} / ${CAL_KM} km`;
+  $('#calFactor').textContent = NF(c.factor,3);
+  const st = $('#calState'); st.className = 'pill ' + (c.ready ? 'ok' : 'warn'); st.textContent = c.ready ? 'Uygulanıyor' : 'Veri toplanıyor';
+}
+$('#btnTripEnd').addEventListener('click', () => { endTrip(); if (S.connected) newTrip(); setControls(); });
+$('#btnTripClear').addEventListener('click', () => { $('#tripClearConfirm').hidden = false; });
+$('#btnTripClearNo').addEventListener('click', () => { $('#tripClearConfirm').hidden = true; });
+$('#btnTripClearYes').addEventListener('click', () => { trips = []; store.set('clio-obd-trips', trips); $('#tripClearConfirm').hidden = true; recalcCal(); renderTrips(); renderMaint(); });
+
+/* ---------- benzin fiyatı ---------- */
+async function loadFuel(){
+  try {
+    const r = await fetch('fuel.json', {cache:'no-cache'});
+    if (!r.ok) throw new Error(r.status);
+    const j = await r.json();
+    if (typeof j.price === 'number' && j.price > 0) S.fuel = j;
+  } catch { S.fuel = null; }
+  renderFuel(); renderTrip();
+}
+function renderFuel(){
+  const f = S.fuel, manual = settings.manualPrice != null, p = fuelPrice();
+  const m = $('#fuelMode');
+  if (manual){ m.className = 'pill warn'; m.textContent = 'Elle girildi'; }
+  else if (f){ m.className = 'pill ok'; m.textContent = 'Otomatik'; }
+  else { m.className = 'pill crit'; m.textContent = 'Fiyat alınamadı'; }
+  $('#fuelPrice').innerHTML = p != null ? `${NF(p,2)}<small>TL/L</small>` : '–<small>TL/L</small>';
+  $('#fuelProduct').textContent = !manual && f ? (f.product || '–') : '–';
+  $('#fuelProvince').textContent = !manual && f ? (f.province || '–') : '–';
+  $('#fuelDistrict').textContent = !manual && f ? (f.district || '–') : '–';
+  $('#fuelSource').textContent = manual ? 'Elle' : (f ? (f.source || '–') : '–');
+  $('#fuelUpdated').textContent = !manual && f ? fmtDTm(f.updatedAt) : '–';
+  $('#fuel100').textContent = p != null ? NF(p*settings.realAvg,2) + ' TL' : '–';
+  $('#fuelTank').textContent = p != null ? NF(p*settings.tank,0) + ' TL' : '–';
+}
+
+/* ---------- bakım ---------- */
+function curKm(){
+  if (settings.odoKm == null) return null;
+  const since = settings.odoDate || '';
+  let km = settings.odoKm;
+  for (const t of trips) if (t.end > since) km += t.dist;
+  if (S.trip && !S.trip.demo) km += S.trip.dist;
+  return km;
+}
+const addMonths = (iso, m) => { const d = new Date(iso); d.setMonth(d.getMonth() + m); return d; };
+function maintStatus(it, km){
+  const remKm = it.lastKm != null && km != null ? it.lastKm + it.intKm - km : null;
+  const due = it.lastDate ? addMonths(it.lastDate, it.intMonths) : null;
+  const remDays = due ? (due - Date.now())/864e5 : null;
+  let s = ['', 'Bilgi yok'];
+  if (remKm != null || remDays != null){
+    if ((remKm != null && remKm <= 0) || (remDays != null && remDays <= 0)) s = ['crit','Zamanı geldi'];
+    else if ((remKm != null && remKm <= 1000) || (remDays != null && remDays <= 30)) s = ['warn','Yaklaşıyor'];
+    else s = ['ok','Tamam'];
+  }
+  return {remKm, due, cls:s[0], txt:s[1]};
+}
+function renderMaint(){
+  const km = curKm();
+  $('#odoNow').innerHTML = km != null ? vU(km,0,'km') : '–';
+  $('#odoAt').textContent = settings.odoDate ? `${NF(settings.odoKm)} km girildi: ${fmtDTm(settings.odoDate)}` : '';
+  const list = $('#maintList');
+  const focused = document.activeElement && list.contains(document.activeElement) ? document.activeElement.id : null;
+  let due = [], soon = 0;
+  list.innerHTML = maint.map(it => {
+    const st = maintStatus(it, km);
+    if (st.cls === 'crit') due.push(it.name); if (st.cls === 'warn') soon++;
+    return `<div class="mi" data-id="${it.id}">
+      <div class="step-head"><b>${it.name}</b><span class="pill ${st.cls}">${st.txt}</span></div>
+      <div class="form">
+        <label class="f" for="m-${it.id}-lastKm">Son yapıldığı km<input id="m-${it.id}-lastKm" data-f="lastKm" inputmode="numeric" value="${it.lastKm ?? ''}" autocomplete="off"></label>
+        <label class="f" for="m-${it.id}-lastDate">Son yapıldığı tarih<input id="m-${it.id}-lastDate" data-f="lastDate" type="date" value="${it.lastDate ? it.lastDate.slice(0,10) : ''}"></label>
+        <label class="f" for="m-${it.id}-intKm">Aralık (km)<input id="m-${it.id}-intKm" data-f="intKm" inputmode="numeric" value="${it.intKm}" autocomplete="off"></label>
+        <label class="f" for="m-${it.id}-intMonths">Aralık (ay)<input id="m-${it.id}-intMonths" data-f="intMonths" inputmode="numeric" value="${it.intMonths}" autocomplete="off"></label>
+      </div>
+      <dl class="kv"><dt>Sonraki km</dt><dd>${it.lastKm != null ? NF(it.lastKm + it.intKm) : '–'}</dd><dt>Kalan km</dt><dd>${st.remKm != null ? NF(st.remKm) : '–'}</dd><dt>Sonraki tarih</dt><dd>${fmtD(st.due)}</dd></dl>
+      <div><button class="btn sm" data-done="${it.id}" ${km == null ? 'disabled' : ''}>Bugün yapıldı</button></div>
+    </div>`;
+  }).join('');
+  if (focused) document.getElementById(focused)?.focus();
+  const ms = $('#maintState');
+  ms.className = 'pill ' + (due.length ? 'crit' : soon ? 'warn' : '');
+  ms.textContent = due.length ? `${due.length} işin zamanı geldi` : soon ? `${soon} iş yaklaşıyor` : (km == null ? 'Kilometre girilmedi' : 'Güncel');
+  $('#kvMaint').textContent = due.length ? due.join(', ') : soon ? `${soon} iş yaklaşıyor` : (km == null ? 'Kilometre girilmedi' : 'Güncel');
+  $('#kvMaint').style.color = due.length ? 'var(--crit)' : '';
+}
+$('#maintList').addEventListener('change', e => {
+  const inp = e.target.closest('input[data-f]'); if (!inp) return;
+  const it = maint.find(x => x.id === inp.closest('.mi').dataset.id), f = inp.dataset.f;
+  if (f === 'lastDate') it.lastDate = inp.value ? new Date(inp.value + 'T12:00:00').toISOString() : null;
+  else { const v = parseNum(inp.value); if (f === 'lastKm') it.lastKm = v != null && v >= 0 ? Math.round(v) : null; else if (v != null && v > 0) it[f] = Math.round(v); }
+  saveMaint(); renderMaint();
+});
+$('#maintList').addEventListener('click', e => {
+  const b = e.target.closest('[data-done]'); if (!b) return;
+  const it = maint.find(x => x.id === b.dataset.done), km = curKm(); if (km == null) return;
+  const d = new Date(); d.setHours(12,0,0,0); it.lastKm = Math.round(km); it.lastDate = d.toISOString(); saveMaint(); renderMaint();
+});
+$('#setOdo').addEventListener('change', e => {
+  const v = parseNum(e.target.value);
+  if (v != null && v >= 0){ settings.odoKm = Math.round(v); settings.odoDate = new Date().toISOString(); }
+  else { settings.odoKm = null; settings.odoDate = null; }
+  e.target.value = settings.odoKm != null ? settings.odoKm : '';
+  saveSettings(); renderMaint();
+});
+
+/* ---------- göstergeler ---------- */
+const G = {cx:120, cy:112, r:92, a0:150, sweep:240, max:7000, red:6000};
+const pt = (a, r) => { const t = a*Math.PI/180; return [G.cx + r*Math.cos(t), G.cy + r*Math.sin(t)]; };
+const arc = (a1, a2, r) => { const [x1,y1]=pt(a1,r), [x2,y2]=pt(a2,r); return `M${x1.toFixed(2)} ${y1.toFixed(2)} A${r} ${r} 0 ${a2-a1>180?1:0} 1 ${x2.toFixed(2)} ${y2.toFixed(2)}`; };
+function buildGauge(){
+  const a = v => G.a0 + G.sweep * v / G.max;
+  let s = `<path class="g-track" d="${arc(G.a0, G.a0+G.sweep, G.r)}"/>`;
+  s += `<path class="g-red" d="${arc(a(G.red), G.a0+G.sweep, G.r)}"/>`;
+  s += `<path class="g-val" id="gVal" pathLength="100" stroke-dasharray="0 100" d="${arc(G.a0, G.a0+G.sweep, G.r)}"/>`;
+  for (let i=0;i<=7;i++){
+    const [x1,y1]=pt(a(i*1000), G.r-11), [x2,y2]=pt(a(i*1000), G.r-19), [lx,ly]=pt(a(i*1000), G.r-30);
+    s += `<line class="g-tick" x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}"/><text class="g-lbl" x="${lx.toFixed(1)}" y="${ly.toFixed(1)}">${i}</text>`;
+  }
+  s += `<text class="g-speed" x="${G.cx}" y="${G.cy+6}" id="gSpeed">–</text><text class="g-unit" x="${G.cx}" y="${G.cy+24}">km/sa</text>`;
+  s += `<text class="g-rpm" x="${G.cx}" y="${G.cy+58}" id="gRpm">–</text><text class="g-unit" x="${G.cx}" y="${G.cy+74}">dev/dk</text>`;
+  $('#rpmGauge').innerHTML = s;
+}
+function buildTiles(){
+  const keys = activePids().map(p=>PIDS[p].k).concat(['batt']);
+  if (S.supported.has('10') || (S.supported.has('0B') && S.supported.has('0F') && S.supported.has('0C'))) keys.push('l100','lph');
+  let html = '';
+  for (const [g, name] of GROUPS){
+    const ks = keys.filter(k => META[k].g === g); if (!ks.length) continue;
+    html += `<div class="group"><h4>${name}</h4><div class="tiles">`;
+    for (const k of ks) html += `<button class="tile" data-k="${k}" aria-pressed="${k===S.sel}"><span class="l">${META[k].l}</span><span class="v na" id="v-${k}">–</span><span class="row" style="gap:6px"><span class="u">${META[k].u}</span>${k==='l100'||k==='lph' ? `<span class="pill" id="e-${k}" hidden>tahmini</span>` : ''}</span></button>`;
+    html += `</div></div>`;
+  }
+  $('#tilesCard').innerHTML = html;
+  if (!keys.includes(S.sel)) S.sel = keys[0];
+}
+$('#tilesCard').addEventListener('click', e => {
+  const t = e.target.closest('.tile'); if (!t) return;
+  S.sel = t.dataset.k;
+  $$('.tile').forEach(x => x.setAttribute('aria-pressed', x.dataset.k===S.sel));
+  drawChart();
+});
+
+let lastSlow = 0;
+function render(){
+  const v = S.values, rpm = v.rpm ?? 0;
+  const gv = $('#gVal'); gv.setAttribute('stroke-dasharray', `${Math.min(100, rpm/G.max*100).toFixed(2)} 100`); gv.classList.toggle('red', rpm >= G.red);
+  $('#gSpeed').textContent = NF(v.speed); $('#gRpm').textContent = NF(v.rpm);
+  const c = v.coolant;
+  $('#tempVal').innerHTML = `${NF(c)}<small>°C</small>`;
+  $('#tempFill').style.width = c == null ? '0' : clamp((c-40)/80*100, 0, 100) + '%';
+  const tp = $('#tempPill');
+  if (c == null){ tp.className='pill'; tp.textContent='–'; }
+  else if (c < 70){ tp.className='pill warn'; tp.textContent='Soğuk'; }
+  else if (c <= 104){ tp.className='pill ok'; tp.textContent='Normal'; }
+  else { tp.className='pill crit'; tp.textContent='Yüksek'; }
+  $('#kvBatt').textContent = v.batt == null ? '–' : NF(v.batt,1) + ' V';
+  const now = performance.now(); S.reqs = S.reqs.filter(t => now - t < 3000);
+  $('#kvRate').textContent = NF(S.reqs.length/3, 1) + ' istek/sn';
+  for (const k in META){
+    const el = document.getElementById('v-'+k); if (!el) continue;
+    const val = v[k]; el.textContent = NF(val, META[k].d); el.classList.toggle('na', val == null);
+    if (k==='l100'||k==='lph') document.getElementById('e-'+k).hidden = !S.est;
+  }
+  if (!$('#hud').hidden) renderHud();
+  if (!$('#tab-dash').hidden) drawChart();
+  if (now - lastSlow > 1000){ lastSlow = now; renderTrip(); if (S.trip && !S.trip.demo && settings.odoKm != null && !$('#tab-trip').hidden && !$('#maintList').contains(document.activeElement)) renderMaint(); }
+}
+
+/* ---------- grafik ---------- */
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function drawLine(cv, data, opts){
+  const cx = cv.getContext('2d'), dpr = window.devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight;
+  if (!W || !H) return;
+  if (cv.width !== Math.round(W*dpr) || cv.height !== Math.round(H*dpr)) { cv.width = Math.round(W*dpr); cv.height = Math.round(H*dpr); }
+  cx.setTransform(dpr,0,0,dpr,0,0); cx.clearRect(0,0,W,H);
+  if (data.length < 2) return;
+  const n = opts.n || data.length;
+  let lo = opts.lo ?? Math.min(...data), hi = opts.hi ?? Math.max(...data);
+  if (hi - lo < 1e-6){ hi += 1; lo -= 1; }
+  if (opts.lo == null){ const p = (hi-lo)*0.12; hi += p; lo -= p; }
+  const L = 44, R = 8, T = 8, B = 18, pw = W-L-R, ph = H-T-B;
+  const X = i => L + pw * i / (n-1), Y = val => T + ph * (1 - (val-lo)/(hi-lo));
+  cx.font = `11px ${css('--f-display')}`; cx.fillStyle = css('--muted'); cx.strokeStyle = css('--line'); cx.lineWidth = 1;
+  for (let i=0;i<=3;i++){ const val = lo + (hi-lo)*i/3, y = Y(val); cx.beginPath(); cx.moveTo(L,y); cx.lineTo(W-R,y); cx.stroke(); cx.textAlign='right'; cx.textBaseline='middle'; cx.fillText(NF(val, opts.d), L-6, y); }
+  if (opts.ref != null && opts.ref > lo && opts.ref < hi){ cx.save(); cx.setLineDash([4,4]); cx.strokeStyle = css('--crit'); cx.beginPath(); cx.moveTo(L, Y(opts.ref)); cx.lineTo(W-R, Y(opts.ref)); cx.stroke(); cx.restore(); }
+  const off = n - data.length, acc = css('--accent');
+  const path = new Path2D(); data.forEach((val,i)=>{ const x=X(i+off), y=Y(val); i?path.lineTo(x,y):path.moveTo(x,y); });
+  const area = new Path2D(path); area.lineTo(X(n-1), T+ph); area.lineTo(X(off), T+ph); area.closePath();
+  cx.save(); cx.globalAlpha = .16; cx.fillStyle = acc; cx.fill(area); cx.restore();
+  cx.strokeStyle = acc; cx.lineWidth = 2; cx.stroke(path);
+  cx.fillStyle = acc; cx.beginPath(); cx.arc(X(n-1), Y(data[data.length-1]), 3.5, 0, Math.PI*2); cx.fill();
+  if (opts.caption){ cx.fillStyle = css('--muted'); cx.textAlign='left'; cx.textBaseline='alphabetic'; cx.fillText(opts.caption, L, H-3); }
+}
+function drawChart(){
+  const m = META[S.sel]; if (!m) return;
+  $('#chartTitle').textContent = `${m.l} (${m.u})`;
+  const data = S.hist[S.sel] || [];
+  if (data.length >= 2){
+    const avg = data.reduce((a,b)=>a+b,0)/data.length;
+    $('#stMin').textContent = NF(Math.min(...data), m.d); $('#stMax').textContent = NF(Math.max(...data), m.d); $('#stAvg').textContent = NF(avg, m.d);
+  } else $('#stMin').textContent = $('#stMax').textContent = $('#stAvg').textContent = '–';
+  drawLine($('#chart'), data, {n:300, d:m.d, caption:'son 300 ölçüm'});
+}
+window.addEventListener('resize', () => { drawChart(); if (S.crankSamples) drawLine($('#crankChart'), S.crankSamples, {d:1, ref:9.6}); });
+
+/* ---------- CSV kaydı ---------- */
+function record(){
+  if (!S.rec) return;
+  const row = {ts: isoLocal(new Date())}; for (const k in META) row[k] = S.values[k];
+  S.rec.rows.push(row); $('#recRows').textContent = NF(S.rec.rows.length);
+}
+$('#btnRec').addEventListener('click', () => {
+  if (S.rec){ S.done = S.rec; S.rec = null; $('#btnRec').textContent = 'Kaydı başlat'; $('#btnCsv').disabled = !S.done.rows.length; return; }
+  S.rec = {start:new Date(), rows:[]}; S.done = null;
+  $('#recStart').textContent = fmtDT(S.rec.start); $('#recRows').textContent = '0';
+  $('#btnRec').textContent = 'Kaydı durdur'; $('#btnCsv').disabled = true;
+});
+$('#btnCsv').addEventListener('click', () => {
+  const r = S.done; if (!r || !r.rows.length) return;
+  const keys = Object.keys(META);
+  const q = s => `"${String(s).replace(/"/g,'""')}"`;
+  const head = ['zaman', ...keys.map(k => `${META[k].l} (${META[k].u})`)];
+  const csv = [head.map(q).join(';'), ...r.rows.map(row => [row.ts, ...keys.map(k => row[k]==null ? '' : String(+row[k].toFixed(3)).replace('.',','))].join(';'))].join('\r\n');
+  const d = r.start, name = `clio-obd-${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}.csv`;
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['﻿'+csv], {type:'text/csv'})); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+});
+
+/* ---------- arıza kodları ---------- */
+const DTC_TR = {
+  P0010:'Eksantrik ayar aktüatörü devresi (bank 1)', P0011:'Eksantrik zamanlaması fazla avanslı (bank 1)', P0016:'Krank ve eksantrik sensörü uyumsuz',
+  P0100:'Hava akış (MAF) sensörü devresi', P0101:'MAF sensörü aralık/performans', P0102:'MAF sensörü düşük giriş', P0103:'MAF sensörü yüksek giriş',
+  P0105:'Manifold basınç (MAP) sensörü devresi', P0106:'MAP sensörü aralık/performans', P0107:'MAP sensörü düşük giriş', P0108:'MAP sensörü yüksek giriş',
+  P0110:'Emme havası sıcaklık sensörü devresi', P0112:'Emme havası sıcaklık sensörü düşük giriş', P0113:'Emme havası sıcaklık sensörü yüksek giriş',
+  P0115:'Motor suyu sıcaklık sensörü devresi', P0116:'Su sıcaklık sensörü aralık/performans', P0117:'Su sıcaklık sensörü düşük giriş', P0118:'Su sıcaklık sensörü yüksek giriş',
+  P0120:'Gaz kelebeği/pedal konum sensörü A devresi', P0121:'Gaz kelebeği sensörü A aralık/performans', P0122:'Gaz kelebeği sensörü A düşük giriş', P0123:'Gaz kelebeği sensörü A yüksek giriş',
+  P0125:'Kapalı devre yakıt kontrolü için su sıcaklığı yetersiz', P0128:'Su sıcaklığı termostat değerinin altında (termostat)',
+  P0130:'O2 sensörü devresi (bank 1, sensör 1)', P0131:'O2 sensörü düşük voltaj (B1S1)', P0132:'O2 sensörü yüksek voltaj (B1S1)', P0133:'O2 sensörü yavaş tepki (B1S1)',
+  P0134:'O2 sensöründe aktivite yok (B1S1)', P0135:'O2 sensörü ısıtıcı devresi (B1S1)', P0136:'O2 sensörü devresi (bank 1, sensör 2)', P0137:'O2 sensörü düşük voltaj (B1S2)',
+  P0138:'O2 sensörü yüksek voltaj (B1S2)', P0140:'O2 sensöründe aktivite yok (B1S2)', P0141:'O2 sensörü ısıtıcı devresi (B1S2)',
+  P0170:'Yakıt trimi arızası (bank 1)', P0171:'Karışım çok fakir (bank 1)', P0172:'Karışım çok zengin (bank 1)',
+  P0200:'Enjektör devresi', P0201:'Enjektör devresi, silindir 1', P0202:'Enjektör devresi, silindir 2', P0203:'Enjektör devresi, silindir 3', P0204:'Enjektör devresi, silindir 4',
+  P0230:'Yakıt pompası birincil devresi', P0300:'Rastgele/çoklu silindir tekleme', P0301:'Silindir 1 tekleme', P0302:'Silindir 2 tekleme', P0303:'Silindir 3 tekleme', P0304:'Silindir 4 tekleme',
+  P0325:'Vuruntu sensörü 1 devresi', P0327:'Vuruntu sensörü düşük giriş', P0328:'Vuruntu sensörü yüksek giriş',
+  P0335:'Krank mili konum sensörü A devresi', P0336:'Krank mili konum sensörü aralık/performans', P0340:'Eksantrik mili konum sensörü devresi',
+  P0351:'Ateşleme bobini A devresi', P0352:'Ateşleme bobini B devresi', P0353:'Ateşleme bobini C devresi', P0354:'Ateşleme bobini D devresi',
+  P0400:'EGR akış arızası', P0420:'Katalizör verimi eşiğin altında (bank 1)', P0440:'Buharlaşma (EVAP) sistemi arızası',
+  P0443:'EVAP kanister boşaltma valfi devresi', P0455:'EVAP sisteminde büyük kaçak', P0480:'Soğutma fanı 1 kontrol devresi',
+  P0500:'Araç hız sensörü', P0505:'Rölanti kontrol sistemi', P0506:'Rölanti beklenenden düşük', P0507:'Rölanti beklenenden yüksek',
+  P0560:'Sistem voltajı', P0562:'Sistem voltajı düşük', P0563:'Sistem voltajı yüksek',
+  P0600:'Seri iletişim hattı', P0601:'ECU hafıza kontrol toplamı hatası', P0603:'ECU kalıcı hafıza hatası', P0605:'ECU ROM hatası', P0606:'ECU işlemci arızası',
+  P0641:'Sensör referans voltajı A devresi', P0650:'Arıza lambası (MIL) kontrol devresi', P0700:'Şanzıman kontrol sistemi arıza bildiriyor',
+  P2096:'Katalizör sonrası yakıt trimi çok fakir', P2097:'Katalizör sonrası yakıt trimi çok zengin', P2135:'Gaz kelebeği/pedal sensörü A-B voltaj uyumsuzluğu',
+  U0001:'Yüksek hızlı CAN iletişim hattı', U0100:'Motor ECU ile iletişim kaybı', U0121:'ABS modülü ile iletişim kaybı', U0155:'Gösterge paneli ile iletişim kaybı'
+};
+const SYS = {P:'Motor/şanzıman', C:'Şasi', B:'Gövde', U:'Ağ/iletişim'};
+const RANGE_P = {'0':'Yakıt ve hava ölçümü','1':'Yakıt ve hava ölçümü','2':'Enjektör devresi','3':'Ateşleme sistemi veya tekleme','4':'Emisyon kontrolü','5':'Hız ve rölanti kontrolü','6':'ECU ve çıkış devreleri','7':'Şanzıman','8':'Şanzıman','9':'Şanzıman','A':'Hibrit sistem','B':'Hibrit sistem','C':'Hibrit sistem'};
+const describe = code => DTC_TR[code] || (code[0]==='P' ? (RANGE_P[code[2]] || 'Motor') + ' arızası' : SYS[code[0]] + ' arızası');
+const isOem = code => code[1]==='1' || code[1]==='3';
+
+const READY_B = [[0,4,'Tekleme izleme'],[1,5,'Yakıt sistemi'],[2,6,'Bileşenler']];
+const READY_SPARK = ['Katalizör','Isıtmalı katalizör','Buharlaşma (EVAP)','İkincil hava','Klima gazı','Oksijen sensörü','O2 sensör ısıtıcısı','EGR sistemi'];
+async function readDtc(silent){
+  if (!S.connected && !silent) return;
+  $('#dtcErr').hidden = true; $('#btnRead').disabled = true;
+  try {
+    const m = pidBytes(await cmd('0101'), 1, '01');
+    if (m && m.length >= 4){
+      const [A,B,C,D] = m, items = [];
+      for (const [av,inc,name] of READY_B) if (B & (1<<av)) items.push([name, !(B & (1<<inc))]);
+      if (!(B & 0x08)) READY_SPARK.forEach((name,i) => { if (C & (1<<i)) items.push([name, !(D & (1<<i))]); });
+      S.mon = {mil: !!(A & 0x80), count: A & 0x7F, items};
+    } else S.mon = null;
+    const r3 = await cmd('03', 6000); S.dtcStored = bad(r3) ? [] : parseDtc(r3, '43');
+    const r7 = await cmd('07', 6000); S.dtcPending = bad(r7) ? [] : parseDtc(r7, '47');
+    if (S.supported.has('31')) await readPid('31', false);
+    S.ff = await readFreeze();
+    S.lastRead = new Date();
+  } catch (e) { $('#dtcErr').textContent = 'Okuma başarısız: ' + e.message; $('#dtcErr').hidden = false; }
+  finally { $('#btnRead').disabled = !S.connected; renderDtc(); }
+}
+async function readFreeze(){
+  const b = pidBytes(await cmd('020200'), 2, '02');
+  if (!b || b.length < 3 || (b[1] === 0 && b[2] === 0)) return {code:null, rows:[]};
+  const code = decodeDtc(hex2(b[1]) + hex2(b[2]));
+  const sup = new Set(), m = pidBytes(await cmd('020000'), 2, '00');
+  if (m && m.length >= 5) addMask(sup, m.slice(1), 0);
+  const list = FF_PIDS.filter(p => sup.size ? sup.has(p) : S.supported.has(p));
+  const rows = [];
+  for (const p of list){
+    const d = PIDS[p], v = pidBytes(await cmd('02'+p+'00'), 2, p);
+    if (v && v.length >= 1 + d.n) rows.push([d.l, d.f(v[1], v[2]), d.u, d.d]);
+  }
+  return {code, rows};
+}
+function rowsFor(list){
+  if (!list.length) return `<tr><td colspan="4" class="muted">Kod yok</td></tr>`;
+  return list.map(c => `<tr><td class="code">${c}</td><td>${describe(c)}</td><td>${SYS[c[0]]}</td><td><span class="pill">${isOem(c)?'Üreticiye özel':'Standart'}</span></td></tr>`).join('');
+}
+function renderDtc(){
+  const mon = S.mon, read = !!S.lastRead, nr = t => `<tr><td colspan="${t}" class="muted">Henüz okunmadı</td></tr>`;
+  const milTxt = mon ? (mon.mil ? 'Yanıyor' : 'Sönük') : '–';
+  $('#sumMil').textContent = milTxt; $('#sumMil').style.color = mon ? (mon.mil ? 'var(--crit)' : 'var(--ok)') : '';
+  $('#kvMil').textContent = milTxt;
+  $('#sumStored').textContent = read ? S.dtcStored.length : '–';
+  $('#sumPending').textContent = read ? S.dtcPending.length : '–';
+  $('#sumTime').textContent = fmtDT(S.lastRead);
+  $('#listStored').innerHTML = read ? rowsFor(S.dtcStored) : nr(4);
+  $('#listPending').innerHTML = read ? rowsFor(S.dtcPending) : nr(4);
+  $('#listReady').innerHTML = mon && mon.items.length
+    ? mon.items.map(([n,ok]) => `<tr><td>${n}</td><td><span class="pill ${ok?'ok':'warn'}">${ok?'Tamamlandı':'Tamamlanmadı'}</span></td></tr>`).join('')
+    : read ? `<tr><td colspan="2" class="muted">ECU hazırlık bilgisi vermedi</td></tr>` : nr(2);
+  const ff = S.ff;
+  $('#ffCode').textContent = ff?.code || '–';
+  $('#ffRows').innerHTML = !read ? nr(3) : ff && ff.rows.length
+    ? ff.rows.map(([l,v,u,d]) => `<tr><td>${l}</td><td class="r">${NF(v,d)}</td><td>${u}</td></tr>`).join('')
+    : `<tr><td colspan="3" class="muted">Kayıtlı freeze frame yok</td></tr>`;
+  renderInspection();
+}
+function renderInspection(){
+  const st = $('#inspState');
+  if (!S.lastRead){ st.className = 'pill'; st.textContent = 'Okunmadı'; $('#inspRows').innerHTML = `<tr><td colspan="3" class="muted">Kodları oku</td></tr>`; return; }
+  const rows = [], mon = S.mon;
+  rows.push(['Arıza lambası', mon ? (mon.mil ? 'Yanıyor' : 'Sönük') : 'Bilinmiyor', mon ? (mon.mil ? 'crit' : 'ok') : 'warn']);
+  rows.push(['Kayıtlı arıza kodu', String(S.dtcStored.length), S.dtcStored.length ? 'crit' : 'ok']);
+  rows.push(['Bekleyen arıza kodu', String(S.dtcPending.length), S.dtcPending.length ? 'warn' : 'ok']);
+  if (mon && mon.items.length){ const inc = mon.items.filter(i => !i[1]).length; rows.push(['Hazırlık testleri', inc ? `${inc} test tamamlanmadı` : 'Hepsi tamam', inc ? 'warn' : 'ok']); }
+  const dc = S.values.distClr;
+  if (dc != null) rows.push(['Kod silmeden beri yol', `${NF(dc)} km`, dc < 100 ? 'warn' : 'ok']);
+  const lbl = {ok:'Tamam', warn:'Dikkat', crit:'Sorun'};
+  $('#inspRows').innerHTML = rows.map(([k,v,c]) => `<tr><td>${k}</td><td class="num">${v}</td><td><span class="pill ${c}">${lbl[c]}</span></td></tr>`).join('');
+  const worst = rows.some(r => r[2]==='crit') ? 'crit' : rows.some(r => r[2]==='warn') ? 'warn' : 'ok';
+  st.className = 'pill ' + worst; st.textContent = {ok:'Hazır görünüyor', warn:'Dikkat', crit:'Sorun var'}[worst];
+}
+$('#btnRead').addEventListener('click', () => readDtc());
+$('#btnClear').addEventListener('click', () => { $('#clearConfirm').hidden = false; });
+$('#btnClearNo').addEventListener('click', () => { $('#clearConfirm').hidden = true; });
+$('#btnClearYes').addEventListener('click', async () => {
+  $('#clearConfirm').hidden = true;
+  try {
+    const r = await cmd('04', 8000);
+    if (!/44/.test(r.replace(/\s/g,''))) throw new Error('ECU silme komutunu kabul etmedi. Motor kapalı, kontak açık olmalı.');
+    log('sys', 'arıza kodları silindi');
+  } catch (e) { $('#dtcErr').textContent = e.message; $('#dtcErr').hidden = false; }
+  await readDtc();
+});
+
+/* ---------- akü ve şarj testi ---------- */
+async function measureV(n){
+  const vals = [];
+  for (let i=0;i<n;i++){ const v = parseVolt(await cmd('ATRV', 2000)); if (v != null) vals.push(v); }
+  return vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : null;
+}
+const judge = (el, cls, txt) => { el.innerHTML = `<span class="pill ${cls}">${txt}</span>`; };
+async function withTest(fn){
+  S.bTest = true; S.pause++; setControls();
+  try { await sleep(150); await fn(); }
+  catch (e) { log('er', 'test hatası: ' + e.message); }
+  finally { S.pause = Math.max(0, S.pause-1); S.bTest = false; setControls(); store.set('clio-obd-battery', battery); }
+}
+function renderBattery(){
+  const b = battery, J = (el, j) => j ? judge(el, j[0], j[1]) : (el.textContent = '–');
+  $('#bRestV').textContent = b.rest ? NF(b.rest.v,2) + ' V' : '–'; J($('#bRestJ'), b.rest?.j); $('#bRestT').textContent = fmtDT(b.rest?.t);
+  $('#bCrankV').textContent = b.crank ? NF(b.crank.v,2) + ' V' : '–'; J($('#bCrankJ'), b.crank?.j); $('#bCrankT').textContent = fmtDT(b.crank?.t);
+  $('#bChV').textContent = b.ch ? NF(b.ch.v,2) + ' V' : '–'; J($('#bChJ'), b.ch?.j);
+  $('#bChLV').textContent = b.chL ? NF(b.chL.v,2) + ' V' : '–'; J($('#bChLJ'), b.chL?.j);
+  $('#bChT').textContent = fmtDT(b.chL?.t > (b.ch?.t||'') ? b.chL?.t : b.ch?.t);
+}
+$('#btnRest').addEventListener('click', () => withTest(async () => {
+  if (S.mode === 'demo') S.t.setEngine(false);
+  const rpm = S.supported.has('0C') ? await readPid('0C', false) : 0;
+  if (rpm > 300){ judge($('#bRestJ'), 'warn', 'Motor çalışıyor, kapatıp tekrar ölç'); return; }
+  const v = await measureV(5); if (v == null) throw new Error('voltaj okunamadı');
+  const j = v >= 12.6 ? ['ok','Dolu'] : v >= 12.4 ? ['ok','İyi, yaklaşık %75'] : v >= 12.2 ? ['warn','Yarı dolu'] : ['crit','Zayıf, şarj et'];
+  battery.rest = {v, j, t:new Date().toISOString()}; renderBattery();
+}));
+$('#btnCrank').addEventListener('click', () => {
+  if (S.crank){ S.crank.state = 'cancel'; return; }
+  withTest(async () => {
+    const C = S.crank = {state:'wait', min:99, samples:[]}; S.crankSamples = C.samples;
+    $('#btnCrank').textContent = 'İptal'; setControls();
+    const rpm = S.supported.has('0C') ? await readPid('0C', false) : 0;
+    if (rpm > 300){ $('#bCrankS').textContent = 'Motor çalışıyor. Önce motoru kapat.'; S.crank = null; return; }
+    if (S.mode === 'demo'){ S.t.setEngine(false); S.t.scheduleStart(2500); }
+    $('#bCrankS').textContent = 'Hazır. Motoru şimdi çalıştır.';
+    const t0 = performance.now(); let base = null, cranked = false;
+    while (C.state === 'wait' && S.connected && performance.now() - t0 < 30000){
+      const v = parseVolt(await cmd('ATRV', 1500, true)); if (v == null) continue;
+      C.samples.push(v); if (C.samples.length > 400) C.samples.shift();
+      if (C.samples.length === 3) base = (C.samples[0]+C.samples[1]+C.samples[2])/3;
+      if (base != null && v < base - 0.8){ if (!cranked) $('#bCrankS').textContent = 'Marş algılandı, ölçülüyor.'; cranked = true; }
+      if (cranked) C.min = Math.min(C.min, v);
+      if (cranked && v >= 13.0){ C.state = 'done'; }
+      drawLine($('#crankChart'), C.samples, {d:1, ref:9.6});
+    }
+    if (C.state === 'done'){
+      const j = C.min >= 10.0 ? ['ok','İyi'] : C.min >= 9.6 ? ['warn','Sınırda'] : ['crit','Zayıf, akü değişebilir'];
+      battery.crank = {v:C.min, j, t:new Date().toISOString()};
+      $('#bCrankS').textContent = 'Motor çalıştı, test tamamlandı.';
+    } else $('#bCrankS').textContent = C.state === 'cancel' ? 'İptal edildi.' : (cranked ? 'Motor çalışmadı ya da şarj voltajı görülmedi.' : 'Marş algılanmadı.');
+    S.crank = null; $('#btnCrank').textContent = 'Başlat'; renderBattery();
+  });
+});
+async function chargeTest(loaded){
+  const rpm = S.supported.has('0C') ? await readPid('0C', false) : 1000;
+  const el = loaded ? $('#bChLJ') : $('#bChJ');
+  if (!(rpm > 400)){ judge(el, 'warn', 'Motor çalışmıyor'); return; }
+  const v = await measureV(5); if (v == null) throw new Error('voltaj okunamadı');
+  let j;
+  if (!loaded) j = v > 14.8 ? ['crit','Aşırı şarj'] : v >= 13.5 ? ['ok','Normal'] : v >= 13.2 ? ['warn','Düşük'] : ['crit','Şarj etmiyor'];
+  else j = v > 14.8 ? ['crit','Aşırı şarj'] : v >= 13.2 ? ['ok','Normal'] : v >= 12.8 ? ['warn','Sınırda'] : ['crit','Şarj yetersiz'];
+  battery[loaded ? 'chL' : 'ch'] = {v, j, t:new Date().toISOString()}; renderBattery();
+}
+$('#btnCharge').addEventListener('click', () => withTest(() => chargeTest(false)));
+$('#btnChargeL').addEventListener('click', () => withTest(() => chargeTest(true)));
+
+/* ---------- 0–100 ---------- */
+function renderLaunches(){
+  $('#lRows').innerHTML = launches.length ? launches.map(r => `<tr><td>${fmtDTm(r.t)}</td><td class="r">${NF(r.t50,2)}</td><td class="r">${NF(r.t100,2)}</td><td class="r">${NF(r.hz,1)}</td></tr>`).join('')
+    : `<tr><td colspan="4" class="muted">Henüz ölçüm yok</td></tr>`;
+}
+$('#btnLaunch').addEventListener('click', async () => {
+  if (S.launch){ S.launch.state = 'cancel'; return; }
+  const L = S.launch = {state:'arm', t50:null, t100:null}; S.pause++;
+  $('#btnLaunch').textContent = 'İptal'; setControls();
+  $('#lTime').innerHTML = '0,00<small>sn</small>'; $('#l50').textContent = $('#l100').textContent = $('#lHz').textContent = $('#lAcc').textContent = '–';
+  if (S.mode === 'demo'){ S.t.setEngine(true); S.t.launchAt = performance.now() + 2500; }
+  let prev = null, lastZero = null, tStart = null, n = 0, tFirst = null;
+  const cross = (target, a, b) => a[1] + (target - a[0]) / (b[0] - a[0]) * (b[1] - a[1]);
+  try {
+    while (L.state !== 'cancel' && L.state !== 'done' && S.connected){
+      const r = await cmd('010D', 1500, true), t = performance.now(), b = pidBytes(r, 1, '0D');
+      if (!b || !b.length) continue;
+      const v = b[0]; S.values.speed = v; n++; tFirst ??= t; tripTick();
+      if (L.state === 'arm'){ if (v === 0){ L.state = 'ready'; lastZero = t; $('#lState').textContent = 'Hazır. Gaza bas.'; } else $('#lState').textContent = 'Aracı tamamen durdur.'; }
+      else if (L.state === 'ready'){
+        if (v === 0) lastZero = t;
+        else { tStart = (lastZero + t)/2; L.state = 'run'; $('#lState').textContent = 'Ölçülüyor.'; }
+      } else if (L.state === 'run'){
+        if (L.t50 == null && v >= 50 && prev) L.t50 = (cross(50, [prev[1], prev[0]], [v, t]) - tStart)/1000;
+        if (v >= 100 && prev){ L.t100 = (cross(100, [prev[1], prev[0]], [v, t]) - tStart)/1000; L.state = 'done'; }
+        if (v === 0 || t - tStart > 60000){ L.state = 'cancel'; $('#lState').textContent = 'Ölçüm yarıda kaldı.'; }
+        $('#lTime').innerHTML = `${NF(L.t100 ?? (t - tStart)/1000, 2)}<small>sn</small>`;
+      }
+      if (L.t50 != null) $('#l50').textContent = NF(L.t50,2) + ' sn';
+      prev = [t, v];
+      const hz = n > 1 ? (n-1) / ((t - tFirst)/1000) : null;
+      if (hz){ $('#lHz').textContent = NF(hz,1) + ' Hz'; $('#lAcc').textContent = '± ' + NF(1/hz/2,2) + ' sn'; }
+    }
+    if (L.state === 'done'){
+      $('#l100').textContent = NF(L.t100,2) + ' sn'; $('#lState').textContent = 'Tamamlandı.';
+      const hz = parseFloat(($('#lHz').textContent || '').replace(',','.'));
+      if (S.mode !== 'demo'){ launches.unshift({t:new Date().toISOString(), t50:L.t50, t100:L.t100, hz: isFinite(hz) ? hz : null}); launches = launches.slice(0,10); store.set('clio-obd-launch', launches); }
+      renderLaunches();
+    } else if ($('#lState').textContent !== 'Ölçüm yarıda kaldı.') $('#lState').textContent = 'İptal edildi.';
+  } catch (e) { log('er', '0–100 hatası: ' + e.message); }
+  finally { S.launch = null; S.pause = Math.max(0, S.pause-1); $('#btnLaunch').textContent = 'Hazırla'; setControls(); }
+});
+
+/* ---------- HUD ---------- */
+const MIRROR = [['','kapalı'],['v','dikey'],['h','yatay']]; let mirror = store.get('clio-obd-mirror', 0) % 3;
+function renderHud(){
+  const v = S.values;
+  $('#hudSpeed').textContent = NF(v.speed);
+  $('#hudBar').style.width = clamp((v.rpm||0)/G.max*100, 0, 100) + '%';
+  $('#hudBar').style.background = (v.rpm||0) >= G.red ? 'var(--crit)' : 'var(--accent)';
+  $('#hudRpm').textContent = v.rpm == null ? '–' : NF(v.rpm) + ' dev/dk';
+  $('#hudTemp').textContent = v.coolant == null ? '–' : NF(v.coolant) + ' °C';
+}
+function applyMirror(){ $('#hudIn').className = 'hud-in ' + MIRROR[mirror][0]; $('#hudMirror').textContent = 'Ayna: ' + MIRROR[mirror][1]; }
+$('#btnHud').addEventListener('click', () => { $('#hud').hidden = false; applyMirror(); renderHud(); $('#hud').requestFullscreen?.().catch(()=>{}); });
+$('#hudClose').addEventListener('click', () => { $('#hud').hidden = true; if (document.fullscreenElement) document.exitFullscreen?.().catch(()=>{}); });
+$('#hudMirror').addEventListener('click', () => { mirror = (mirror + 1) % 3; store.set('clio-obd-mirror', mirror); applyMirror(); });
+
+/* ---------- bağlantı bilgisi ---------- */
+function renderInfo(){
+  const i = S.info;
+  $('#ciName').textContent = i.name || '–'; $('#ciSvc').textContent = i.svc || '–'; $('#ciVer').textContent = i.ver || '–';
+  $('#ciProto').textContent = i.proto || '–'; $('#ciProtoN').textContent = i.protoN || '–';
+  $('#ciPids').textContent = i.pids != null ? i.pids : '–';
+  $('#ciVin').textContent = i.time ? (i.vin || 'ECU bildirmiyor') : '–';
+  $('#ciTime').textContent = fmtDT(i.time);
+}
+
+/* ---------- ekran açık kalsın ---------- */
+async function requestWake(){ try { S.wake = await navigator.wakeLock?.request('screen'); } catch {} }
+function releaseWake(){ try { S.wake?.release(); } catch {} S.wake = null; }
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && S.connected) requestWake(); });
+window.addEventListener('pagehide', () => { if (S.trip) endTrip(); });
+
+/* ---------- UI bağlama ---------- */
+const hasBt = !!(navigator.bluetooth && navigator.bluetooth.requestDevice);
+$('#btWarn').hidden = hasBt;
+$('#btnConnect').addEventListener('click', () => { if (S.connected) stop(); else start('ble'); });
+$('#btnDemo').addEventListener('click', () => start('demo'));
+$$('.tab').forEach(t => t.addEventListener('click', () => {
+  $$('.tab').forEach(x => x.setAttribute('aria-selected', x === t));
+  for (const id of ['dash','trip','dtc','test','conn']) $('#tab-'+id).hidden = id !== t.dataset.tab;
+  if (t.dataset.tab === 'dash') drawChart();
+  if (t.dataset.tab === 'trip'){ renderTrip(); renderMaint(); }
+  if (t.dataset.tab === 'test' && S.crankSamples) drawLine($('#crankChart'), S.crankSamples, {d:1, ref:9.6});
+}));
+
+const bindNum = (id, key, min, max, after) => {
+  const el = $(id); el.value = settings[key] != null ? String(settings[key]).replace('.',',') : '';
+  el.addEventListener('change', () => {
+    const v = parseNum(el.value);
+    if (v != null && v >= min && v <= max) settings[key] = v;
+    el.value = String(settings[key]).replace('.',','); saveSettings(); after && after();
+  });
+};
+bindNum('#setCc', 'cc', 500, 8000);
+bindNum('#setVe', 've', 0.5, 1.1);
+bindNum('#setTank', 'tank', 20, 120, () => { renderFuel(); renderTrip(); });
+bindNum('#setReal', 'realAvg', 2, 25, () => { recalcCal(); renderCal(); renderFuel(); renderTrip(); });
+$('#setPrice').value = settings.manualPrice != null ? String(settings.manualPrice).replace('.',',') : '';
+$('#setPrice').addEventListener('change', e => {
+  const v = parseNum(e.target.value); settings.manualPrice = v != null && v > 0 && v < 1000 ? v : null;
+  e.target.value = settings.manualPrice != null ? String(settings.manualPrice).replace('.',',') : '';
+  saveSettings(); renderFuel(); renderTrip();
+});
+$('#setOdo').value = settings.odoKm ?? '';
+$('#setProto').value = settings.proto; $('#setUuid').value = settings.uuid;
+$('#setProto').addEventListener('change', e => { settings.proto = e.target.value; saveSettings(); });
+$('#setUuid').addEventListener('change', e => { settings.uuid = e.target.value.trim(); saveSettings(); });
+
+$('#termForm').addEventListener('submit', async e => {
+  e.preventDefault(); const c = $('#termCmd').value.trim().toUpperCase(); if (!c || !S.connected) return;
+  $('#termCmd').value = ''; try { await cmd(c, 6000); } catch (err) { log('er', err.message); }
+});
+$('#btnClearLog').addEventListener('click', () => { term.textContent = ''; logLines = 0; });
+$('#btnCopyLog').addEventListener('click', async () => {
+  try { await navigator.clipboard.writeText(term.innerText); $('#btnCopyLog').textContent = 'Kopyalandı'; setTimeout(() => $('#btnCopyLog').textContent = 'Kopyala', 1500); }
+  catch { const r = document.createRange(); r.selectNodeContents(term); const s = getSelection(); s.removeAllRanges(); s.addRange(r); }
+});
+
+buildGauge(); recalcCal(); renderDtc(); renderInfo(); renderTrip(); renderTrips(); renderMaint(); renderBattery(); renderLaunches(); renderFuel(); setControls();
+loadFuel();
+log('sys', hasBt ? 'hazır: Bağlan ile FD10\'u seç' : 'bu tarayıcıda Web Bluetooth yok, demo modu açılıyor');
+if (!hasBt) start('demo');
+})();
+</script>
+
+</body>
+</html>
